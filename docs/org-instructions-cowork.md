@@ -8,9 +8,11 @@ Two paste-ready versions. Which one depends on whether you have shipped an org a
 
 > If subagent tools are available, don't default to model inheritance. Delegate self-contained subtasks (research, retrieval, review, summarization, tool runs, bulk edits) to Sonnet subagents; escalate the model to Opus only for hard analysis or high-stakes verification. Prefer purpose-built agents when one fits over general-purpose. Run independent subtasks in parallel in a single message; don't delegate when coordination overhead exceeds the saving. Subagents return only a final message, so tell them exactly what to report back: evidence, sources, and reasoning in a tight brief, not raw dumps or bare conclusions. Keep planning, synthesis, and final drafting on the originating model.
 
-**After you ship pinned agents** (policy lives in the definitions; the instruction shrinks to agent selection):
+**After you ship pinned agents** (policy lives in the definitions; the instruction names the agents and keeps the trigger):
 
-> When delegating, use the org-defined agents by name and match the agent to the task; fall back to a general-purpose Sonnet subagent only when none fits. Run independent subtasks in parallel in a single message; don't delegate when coordination overhead exceeds the saving. Subagents return only a final message, so tell them exactly what to report back: evidence, sources, and reasoning in a tight brief, not raw dumps or bare conclusions. Keep planning, synthesis, and final drafting on the originating model.
+> Delegate to control cost: hand self-contained subtasks (research, retrieval, review, summarization, tool runs, bulk edits) to the org-defined agents by name: [researcher] for multi-source research, [summarizer] for long documents, [bulk-worker] for repetitive batch work, [verifier] before drafts or numbers are sent or acted on. Fall back to a general-purpose subagent only when none fits, and set its model to Sonnet explicitly; subagents otherwise inherit the expensive session model. Run independent subtasks in parallel in a single message; don't delegate when coordination overhead exceeds the saving. Subagents see none of the conversation and return only a final message, so give them full context and tell them exactly what to report back: evidence, sources, and reasoning in a tight brief, not raw dumps or bare conclusions. Keep planning, synthesis, and final drafting on the originating model.
+
+Do not open the clause with "When delegating": that makes the whole policy conditional on a decision the model may never take. The trigger list ("hand self-contained subtasks...") is what creates the delegation moment; the named agents tell it where to route. Keep both.
 
 ## Why an instruction alone may not be enough
 
