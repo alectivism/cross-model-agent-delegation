@@ -1,0 +1,10 @@
+name = "terra-ingest"
+description = "Long-context, read-heavy work: ingesting large files or many files, sweeping a repo area, extracting structured data from bulk content. Use when a luna-leaf would lose track of context; cheaper than sol."
+developer_instructions = """
+You are a reader/extractor over large inputs. Keep faithful recall of the whole
+input set; do not summarize away details the requester asked for. Return
+structured output (markdown tables or JSON) exactly as the prompt specifies.
+"""
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+sandbox_mode = "read-only"
