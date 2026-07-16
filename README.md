@@ -1,6 +1,20 @@
 # Claude Delegation Kit
 
-Deterministic multi-model delegation for [Claude Code](https://code.claude.com): drive the OpenAI **Codex CLI** as a subagent engine with pinned model/effort routing, plus model-pinned Claude subagent templates and org-level guidance for Claude Teams/Enterprise.
+Run [Claude Code](https://code.claude.com) with a powerful Anthropic model (Fable, Opus) as the **orchestrator**, and have it delegate the actual work to two pools of cheaper subagents: **Anthropic subagents** (Sonnet/Haiku, pinned per task type) and **GPT-5.6 subagents** (via the OpenAI Codex CLI on a ChatGPT subscription).
+
+It does two related things:
+
+1. **Cuts expensive-model token burn.** The orchestrator keeps planning, judgment, and final synthesis; research, review, retrieval, bulk edits, and mechanical work run on Sonnet/Haiku subagents or GPT-5.6 luna/terra leaves. Ad-hoc subagents in Claude Code silently inherit the session model, so an Opus session burns Opus on grep work unless something pins the model. This kit pins it.
+2. **Spreads load across both subscriptions.** Claude quota and ChatGPT/Codex quota are separate pools. Routing self-contained reasoning, code review, and implementation leaf-work to Codex means your Claude limits last longer, and you get a cross-family bonus: a GPT model reviewing Claude's work (or vice versa) catches errors two same-family models share. That can be an adversarial review, a second opinion on a plan, or just "apply reasoning to this pile of search results" after cheap agents did the gathering.
+
+You don't invoke any of this manually. You talk to Claude normally; the skill and rules make Claude classify and route on its own:
+
+- "Fix the flaky retry test" → Claude does the fix, then delegates the verification to a `review`-class Codex call on gpt-5.6-sol.
+- "What does our webhook layer actually do?" → an `explore`/`ingest` Codex call or a Sonnet researcher, depending on what's needed, with only the summary returning to your context.
+- "Get a second opinion on this migration plan from GPT" → a `review`-class call, framed as feedback, not a bug hunt.
+- A 40-file mechanical refactor → fan-out to luna/Haiku leaves, synthesis on the orchestrator.
+
+The wrapper script exists so the *model classifies but never picks flags*: every Codex invocation goes through a task-class enum that pins model, reasoning effort, and sandbox deterministically.
 
 Everything here was built by fixing real failure modes, each independently verified (July 2026, codex-cli 0.144.1, Claude Code 2.1.x):
 
@@ -25,13 +39,13 @@ mkdir -p ~/.codex/agents && cp codex-agents/*.toml ~/.codex/agents/
 mkdir -p ~/.claude/agents && cp claude-agents/*.md ~/.claude/agents/
 ```
 
-Requires: Codex CLI installed and logged in (`codex login`), `jq`, and Claude Code. Then in any Claude Code session:
+Requires: Codex CLI installed and logged in (`codex login`), `jq`, and Claude Code. Also add the routing rules from [`docs/claude-md-snippet.md`](docs/claude-md-snippet.md) to your `CLAUDE.md` — that's the always-in-context layer that makes delegation happen by default instead of on request.
 
-```
-~/.claude/skills/codex-delegate/scripts/codex-run.sh review "Adversarially review this diff: ..."
-```
+That's it. Claude Code loads the skill automatically whenever a task smells like Codex delegation ("ask GPT", "second opinion", "offload this review") or Claude itself decides to delegate. The skill instructs Claude to classify the task into one of six classes (`commit`, `implement`, `explore`, `ingest`, `review`, `hardest`) and run the wrapper, which owns every flag. You never type the script invocation yourself, though you can:
 
-Claude Code picks the skill up automatically; it instructs Claude to classify each Codex task into one of six classes (`commit`, `implement`, `explore`, `ingest`, `review`, `hardest`) and let the script own every flag.
+```bash
+~/.claude/skills/codex-delegate/scripts/codex-run.sh review "Here is a plan and its context: ... What would you change and why?"
+```
 
 ### Optional: hard enforcement hook
 

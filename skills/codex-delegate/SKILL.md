@@ -24,7 +24,7 @@ Never hand-assemble `codex exec` flags. Classify the task into one class and run
 | `implement` | luna / xhigh (workspace-write) | small, fully specified code change |
 | `explore` | sol / medium | ambiguous, needs repo exploration or judgment |
 | `ingest` | terra / medium | long-context read-heavy extraction |
-| `review` | sol / medium | adversarial review, verdicts, architecture |
+| `review` | sol / medium | review, second opinions, feedback, verdicts, architecture |
 | `hardest` | sol / xhigh | after a cheaper class failed, or genuinely hardest |
 
 Options: `--escalate` (one rung up), `--effort low|medium|high|xhigh|max` (effort only, model stays class-pinned), `--write`, `--web`, `-C <dir>`, `-o <file>`.
