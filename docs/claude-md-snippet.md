@@ -5,6 +5,11 @@ Add to `~/.claude/CLAUDE.md` (personal, all projects) or a repo's `CLAUDE.md`. R
 ```markdown
 ## Subagent routing
 
+Orchestrator-worker split: the session model plans, judges, and synthesizes;
+workers do the work. Fan independent subtasks out in parallel; workers loop
+to completion and return summaries only, keeping their noise out of the main
+context.
+
 Default subagents to **sonnet** — it handles review, search, docs-lookup,
 summarization, extraction, and bulk/mechanical work. Reserve the top-tier
 model for deep reasoning, architectural judgment, tricky debugging, and

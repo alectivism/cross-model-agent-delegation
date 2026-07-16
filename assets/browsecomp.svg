@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="470" viewBox="0 0 720 470" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect x="0" y="0" width="720" height="470" rx="14" fill="#fcfcfb" stroke="#e4e3df"/>
+  <text x="26" y="36" font-size="18" font-weight="700" fill="#0b0b0b">Orchestrator + cheap workers holds near-top accuracy at under half the cost</text>
+  <text x="26" y="56" font-size="12.5" fill="#52514e">BrowseComp (full set), accuracy vs cost per problem</text>
+
+  <!-- grid -->
+  <g stroke="#ececea" stroke-width="1">
+    <line x1="109" y1="70" x2="109" y2="380"/><line x1="206" y1="70" x2="206" y2="380"/>
+    <line x1="303" y1="70" x2="303" y2="380"/><line x1="399" y1="70" x2="399" y2="380"/>
+    <line x1="496" y1="70" x2="496" y2="380"/><line x1="593" y1="70" x2="593" y2="380"/>
+    <line x1="90" y1="364" x2="670" y2="364"/><line x1="90" y1="282" x2="670" y2="282"/>
+    <line x1="90" y1="200" x2="670" y2="200"/><line x1="90" y1="119" x2="670" y2="119"/>
+  </g>
+  <line x1="90" y1="380" x2="670" y2="380" stroke="#b9b8b2" stroke-width="1.2"/>
+
+  <!-- axis labels -->
+  <g font-size="11.5" fill="#52514e">
+    <text x="109" y="398" text-anchor="middle">$15</text><text x="206" y="398" text-anchor="middle">$20</text>
+    <text x="303" y="398" text-anchor="middle">$25</text><text x="399" y="398" text-anchor="middle">$30</text>
+    <text x="496" y="398" text-anchor="middle">$35</text><text x="593" y="398" text-anchor="middle">$40</text>
+    <text x="82" y="368" text-anchor="end">75</text><text x="82" y="286" text-anchor="end">80</text>
+    <text x="82" y="204" text-anchor="end">85</text><text x="82" y="123" text-anchor="end">90</text>
+  </g>
+  <text x="380" y="424" font-size="12" fill="#52514e" text-anchor="middle">Cost per problem (USD)</text>
+  <text x="30" y="225" font-size="12" fill="#52514e" text-anchor="middle" transform="rotate(-90 30 225)">Accuracy (%)</text>
+
+  <!-- all-Sonnet: circle, green -->
+  <circle cx="129" cy="318" r="8" fill="#008300" stroke="#fcfcfb" stroke-width="2"/>
+  <text x="145" y="315" font-size="12.5" font-weight="600" fill="#0b0b0b">All Sonnet 5</text>
+  <text x="145" y="331" font-size="11.5" fill="#52514e">77.8% · $16.01</text>
+
+  <!-- all-Fable: square, neutral reference -->
+  <rect x="596" y="99" width="14" height="14" fill="#52514e" stroke="#fcfcfb" stroke-width="2"/>
+  <text x="588" y="103" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="end">All Fable 5</text>
+  <text x="588" y="119" font-size="11.5" fill="#52514e" text-anchor="end">90.8% · $40.56</text>
+
+  <!-- hybrid: diamond, hero -->
+  <path d="M 178 160 L 190 171 L 178 182 L 166 171 Z" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+  <text x="198" y="168" font-size="12.5" font-weight="700" fill="#0b0b0b">Fable 5 orchestrator + Sonnet 5 workers</text>
+  <text x="198" y="184" font-size="11.5" fill="#52514e">86.8% · $18.53</text>
+  <text x="198" y="204" font-size="12" font-weight="600" fill="#2a78d6">96% of all-Fable accuracy at 46% of the cost</text>
+
+  <!-- legend -->
+  <g font-size="11.5" fill="#52514e">
+    <path d="M 34 447 L 41 453.5 L 34 460 L 27 453.5 Z" fill="#2a78d6"/>
+    <text x="49" y="458">Fable 5 + Sonnet 5 workers</text>
+    <circle cx="222" cy="453.5" r="6" fill="#008300"/>
+    <text x="234" y="458">All Sonnet 5</text>
+    <rect x="318" y="448" width="11" height="11" fill="#52514e"/>
+    <text x="335" y="458">All Fable 5</text>
+    <text x="694" y="458" text-anchor="end" font-style="italic">Data: Anthropic internal benchmark, July 2026</text>
+  </g>
+</svg>
