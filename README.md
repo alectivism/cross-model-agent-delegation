@@ -2,6 +2,8 @@
 
 Delegation between [Claude Code](https://code.claude.com) and the [OpenAI Codex CLI](https://developers.openai.com/codex/cli), in **both directions**, with a script owning every flag so the model classifies but never improvises.
 
+This is the setup I run daily as Chief Agent Officer at the Marketing + Media Alliance, extracted and stripped of anything organization-specific. Every claim below was verified against a named CLI version on a stated date, and the failure modes in the "what this cost to get right" sections are ones that actually bit.
+
 - **Claude Code → Codex.** A Fable/Opus orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet/Haiku subagents or to GPT-5.6 luna/sol/terra workers.
 - **Codex → Claude Code.** A Codex session sends the same shapes of work the other way, to Haiku/Sonnet/Opus workers.
 
@@ -180,6 +182,16 @@ Skill names read as verbs from the installer's point of view: you install `deleg
 4. **Hook** — blocks the bypass path entirely.
 
 A model reading a rule is compliance; a script owning the flags is determinism. Use both.
+
+## Design principles
+
+The five rules everything here follows from:
+
+1. The LLM classifies; code owns the flags. Determinism comes from shrinking the judgment surface to one enum.
+2. Pin the model in the definition, because the orchestrator forgets and inheritance is silent.
+3. Bake the return format into the worker, because its report is re-read on every later turn.
+4. Delegate for compression, not for tidiness. If the work is small, inline is cheaper than a spawn.
+5. Cross-family review beats same-family review. Two models from one family agree on the same mistakes.
 
 ## Caveats
 
