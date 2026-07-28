@@ -1,0 +1,8 @@
+{
+  "name": "delegate-to-claude",
+  "description": "Delegate work from Codex to the Claude Code CLI. Six pinned task classes across Haiku, Sonnet, and Opus, a wrapper that owns every flag, and an optional guard against raw CLI invocations.",
+  "version": "2.0.0",
+  "author": { "name": "Alec Foster", "email": "alec@mmaglobal.com" },
+  "repository": "https://github.com/alectivism/cross-model-agent-delegation",
+  "license": "MIT"
+}

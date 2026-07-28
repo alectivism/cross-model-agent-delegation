@@ -1,0 +1,21 @@
+{
+  "name": "cross-model-agent-delegation",
+  "description": "Deterministic delegation between Claude Code and the Codex CLI, in both directions. Install the half that matches the CLI you drive, or both.",
+  "owner": { "name": "Alec Foster", "email": "alec@mmaglobal.com" },
+  "plugins": [
+    {
+      "name": "delegate-to-codex",
+      "description": "Install in Claude Code. Routes worker tasks out to the Codex CLI (GPT-5.6).",
+      "version": "2.0.0",
+      "source": "./for-claude-code",
+      "author": { "name": "Alec Foster", "email": "alec@mmaglobal.com" }
+    },
+    {
+      "name": "delegate-to-claude",
+      "description": "Install in Codex. Routes worker tasks out to the Claude Code CLI (Haiku, Sonnet, Opus).",
+      "version": "2.0.0",
+      "source": "./for-codex",
+      "author": { "name": "Alec Foster", "email": "alec@mmaglobal.com" }
+    }
+  ]
+}

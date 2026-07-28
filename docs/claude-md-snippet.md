@@ -25,7 +25,7 @@ when spawning a built-in or ad-hoc subagent for non-deep work, ALWAYS pass
 ## Codex CLI (shelling out)
 
 When shelling out to the Codex CLI non-interactively, always use the wrapper:
-`~/.claude/skills/codex-delegate/scripts/codex-run.sh <class> "<prompt>"`
+`~/.claude/skills/delegate-to-codex/scripts/codex-run.sh <class> "<prompt>"`
 (classes: commit, implement, explore, ingest, review, hardest). It pins
 model+effort per class and passes `--ignore-user-config`, which drops all MCP
 servers and plugins (the multi-minute cold-start). Note `-c 'mcp_servers={}'`

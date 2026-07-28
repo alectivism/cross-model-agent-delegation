@@ -1,5 +1,5 @@
 ---
-name: codex-delegate
+name: delegate-to-codex
 description: Use when delegating any task to the Codex CLI (codex exec, GPT-5.6, "ask Codex", cross-model review, second opinion, offload to GPT) or when choosing a Codex model/effort tier. Covers single calls and Codex-side multi-agent orchestration.
 ---
 
@@ -12,7 +12,7 @@ Optionally, a PreToolUse hook (`scripts/codex-guard.sh`, see repo README for reg
 Never hand-assemble `codex exec` flags. Classify the task into one class and run the wrapper; it owns model, effort, sandbox, MCP/plugin suppression, auth hygiene, and output handling:
 
 ```bash
-~/.claude/skills/codex-delegate/scripts/codex-run.sh <class> [options] "<full-context prompt>"
+~/.claude/skills/delegate-to-codex/scripts/codex-run.sh <class> [options] "<full-context prompt>"
 # last stdout line: OUT=<file>  → Read that file. NEVER pipe codex stdout through head/tail.
 ```
 
