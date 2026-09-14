@@ -14,7 +14,7 @@ esac
 
 if printf '%s' "$cmd" | grep -qE '(^|[;&|([:space:]])codex[[:space:]]+(exec|e)([[:space:]]|$)'; then
   cat <<'JSON'
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Raw 'codex exec' is blocked. Use the deterministic wrapper: ~/.claude/skills/delegate-to-codex/scripts/codex-run.sh <commit|implement|explore|ingest|review|hardest> [--escalate] [--effort E] [--write] [--web] [-C dir] \"<full-context prompt>\" then Read the OUT= file (see the delegate-to-codex skill). To bypass intentionally, prefix the command with CODEX_RAW=1 and state why."}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Raw 'codex exec' is blocked. Use the deterministic wrapper: ~/.claude/skills/delegate-to-codex/scripts/codex-run.sh <commit|implement|explore|ingest|review|hardest|prose> [--escalate] [--effort E] [--model SLUG] [--write] [--web] [-C dir] \"<full-context prompt>\" then Read the OUT= file (see the delegate-to-codex skill). To bypass intentionally, prefix the command with CODEX_RAW=1 and state why."}}
 JSON
 fi
 exit 0

@@ -4,7 +4,7 @@ Delegation between [Claude Code](https://code.claude.com) and the [OpenAI Codex 
 
 This is the setup I run daily as Chief Agent Officer at the Marketing + Media Alliance, extracted and stripped of anything organization-specific. Every claim below was verified against a named CLI version on a stated date, and the failure modes in the "what this cost to get right" sections are ones that actually bit.
 
-- **Claude Code → Codex.** A Fable/Opus orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet/Haiku subagents or to GPT-5.6 luna/sol/terra workers.
+- **Claude Code → Codex.** A Fable/Opus orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet/Haiku subagents or to Codex workers on the current frontier GPT model (GPT-6 Astra at time of writing), resolved from Codex's live model catalog rather than pinned.
 - **Codex → Claude Code.** A Codex session sends the same shapes of work the other way, to Haiku/Sonnet/Opus workers.
 
 Two reasons to run it either way:
@@ -33,7 +33,7 @@ Everything here was built by fixing real failure modes, each independently verif
 
 - `-c 'mcp_servers={}'` is a **no-op** (TOML table overrides merge), so the popular "disable MCP for speed" advice never worked; the real switch is `--ignore-user-config`.
 - Codex's config default model is whatever the desktop app last wrote, so anything relying on it drifts silently.
-- Sol-parent sessions get spawn tools that **hide** `model`/`reasoning_effort` ([openai/codex#31814](https://github.com/openai/codex/issues/31814)), silently running every subagent on Sol; two feature flags restore them.
+- Sessions whose parent model uses multi-agent v2 (Astra, Sol, Terra) get spawn tools that **hide** `model`/`reasoning_effort` ([openai/codex#31814](https://github.com/openai/codex/issues/31814)), silently running every subagent on the parent model; two feature flags restore them.
 - `codex exec` hangs on piped stdin in background runs; piping its stdout through `tail` silently truncates findings.
 - Claude Code subagents default to `model: inherit`, so ad-hoc spawns from an Opus session burn Opus on mechanical work.
 
@@ -67,7 +67,7 @@ codex plugin marketplace add alectivism/cross-model-agent-delegation
 
 Requires: both CLIs installed and logged in (`codex login`, `claude auth`), plus `jq` for the guard hooks. Also add the routing rules from [`docs/claude-md-snippet.md`](docs/claude-md-snippet.md) to your `CLAUDE.md`. That's the always-in-context layer that makes delegation happen by default instead of on request.
 
-Each skill loads automatically when a task smells like cross-model delegation ("ask GPT", "get Claude's read", "second opinion", "offload this review"), or when the orchestrator decides on its own that a subtask is worker work. It classifies into one of six classes (`commit`, `implement`, `explore`, `ingest`, `review`, `hardest`) and runs the wrapper, which owns every flag. You never type the invocation yourself, though you can:
+Each skill loads automatically when a task smells like cross-model delegation ("ask GPT", "get Claude's read", "second opinion", "offload this review"), or when the orchestrator decides on its own that a subtask is worker work. It classifies into one of seven classes (`commit`, `implement`, `explore`, `ingest`, `review`, `hardest`, `prose`) and runs the wrapper, which owns every flag. You never type the invocation yourself, though you can:
 
 ```bash
 ~/.claude/skills/delegate-to-codex/scripts/codex-run.sh review "Here is a plan and its context: ..."
@@ -97,18 +97,21 @@ An instruction is a nudge; a hook is a gate. Each side ships a guard that blocks
 
 ## How the routing works
 
-Same six classes on both sides, so the mental model transfers. Each maps to a model, an effort level, and a write posture.
+Same core classes on both sides, so the mental model transfers. Each maps to a model tier, an effort level, and a write posture.
+
+On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads Codex's own server-fetched catalog (`~/.codex/models_cache.json`, refreshed on every `codex` run) and picks the `frontier` tier (top listed model by priority, following any server `upgrade` pointer) or the `fast` tier (the luna family, same pointer-following, falling back to frontier if it disappears). A new GPT release is picked up on the next call with no edit to the kit. `codex-models.sh check` shows the catalog, the resolved tiers, and whether the `for-codex/agents` TOMLs (tagged `# codex-tier:`) have drifted; `sync-agents` rewrites them.
 
 **Claude Code → Codex** (`codex-run.sh`):
 
-| Class | Model / effort | Sandbox | For |
+| Class | Tier / effort | Sandbox | For |
 |---|---|---|---|
-| `commit` | luna / medium | read-only | commit messages, renames, trivial mechanical |
-| `implement` | luna / xhigh | workspace-write | small, fully specified code changes |
-| `explore` | sol / medium | read-only | ambiguous work needing repo exploration or judgment |
-| `ingest` | terra / medium | read-only | long-context read-heavy extraction (Luna's recall breaks here) |
-| `review` | sol / medium | read-only | adversarial review, verdicts, architecture |
-| `hardest` | sol / xhigh | read-only | after a cheaper class failed |
+| `commit` | fast / medium | read-only | commit messages, renames, trivial mechanical |
+| `implement` | frontier / high | workspace-write | bounded, specified code changes |
+| `explore` | frontier / medium | read-only | ambiguous work needing repo exploration or judgment |
+| `ingest` | frontier / medium | read-only | long-context read-heavy extraction |
+| `review` | frontier / high | read-only | adversarial review, verdicts, architecture |
+| `hardest` | frontier / xhigh | read-only | after another class failed, or genuinely hardest; `--escalate` = `ultra` (max reasoning plus Codex-side automatic sub-agent delegation) |
+| `prose` | frontier / medium | read-only | readability and copy editing of reader-facing text by a second model |
 
 **Codex → Claude Code** (`claude-run.sh`):
 
@@ -121,9 +124,9 @@ Same six classes on both sides, so the mental model transfers. Each maps to a mo
 | `review` | sonnet / high | read-only | adversarial review, verdicts, architecture |
 | `hardest` | opus / xhigh | read-only | after a cheaper class failed |
 
-`--escalate` moves one rung up (allowed after a failure, or upfront when a wrong verdict triggers something irreversible). `--effort <level>` tunes effort within a class; the model stays pinned. The design principle: **the LLM only classifies; code owns the flags.** Determinism comes from shrinking the judgment surface to one enum, not from asking the model to remember rules.
+`--escalate` moves one rung up (allowed after a failure, or upfront when a wrong verdict triggers something irreversible). `--effort <level>` tunes effort within a class (`low`..`max`, plus `ultra` on models that support it); the model stays tier-resolved. `--model <slug>` pins a slug for one call when you need an A/B. `--fast-tier` opts into Codex's Fast service tier (2x speed, about 2x usage); the wrapper pins `service_tier="default"` otherwise, because the catalog's per-model default is Fast and `--ignore-user-config` would let it through. The design principle: **the LLM only classifies; code owns the flags.** Determinism comes from shrinking the judgment surface to one enum, not from asking the model to remember rules.
 
-`codex-run.sh` also bakes in `--ignore-user-config` (drops ~20 MCP servers and ~50 plugins that otherwise cold-start for minutes), an explicit sandbox, `env -u OPENAI_API_KEY` (forces subscription auth), output to a file instead of stdout, `</dev/null` (background hang fix), and the [#31814](https://github.com/openai/codex/issues/31814) feature flags so a Sol orchestrator can actually route Luna/Terra leaves.
+`codex-run.sh` also bakes in `--ignore-user-config` (drops ~20 MCP servers and ~50 plugins that otherwise cold-start for minutes), an explicit sandbox, `env -u OPENAI_API_KEY` (forces subscription auth), output to a file instead of stdout, `</dev/null` (background hang fix), and the [#31814](https://github.com/openai/codex/issues/31814) feature flags so a v2-parent orchestrator can actually route cheaper leaves.
 
 `claude-run.sh` bakes in `--strict-mcp-config` and `--disable-slash-commands`, full model IDs rather than aliases, a read-only tool allowlist with no shell, the prompt on stdin, `env -u ANTHROPIC_API_KEY`, and a worker-framing system prompt so the reply comes back as an answer rather than an offer of next steps.
 
@@ -167,7 +170,7 @@ for-claude-code/                 install this half into ~/.claude
   agents/                          model+effort-pinned Claude agent templates
 for-codex/                       install this half into ~/.codex
   skills/delegate-to-claude/       SKILL.md + claude-run.sh + claude-guard.sh
-  agents/                          Codex fan-out roles: luna-leaf, sol-reviewer, terra-ingest
+  agents/                          Codex fan-out roles: luna-leaf (fast tier), sol-reviewer, terra-ingest (frontier tier; names are historical, the `# codex-tier:` tag decides)
 docs/org-instructions-cowork.md  org instruction for Teams/Enterprise admins
 docs/claude-md-snippet.md        routing rules for your CLAUDE.md (always-in-context layer)
 ```
@@ -195,7 +198,7 @@ The five rules everything here follows from:
 
 ## Caveats
 
-Model names (gpt-5.6-sol/terra/luna, claude-haiku-4-5-20251001) and behaviors like #31814 and the silent `haiku` alias fallback are point-in-time; re-verify after either CLI updates. The `codex features list` and `codex mcp list` commands are your friends — and don't trust an LLM's self-report of its own tool schema, ours confidently got it wrong in both directions. Verify with `--json` events or A/B tests.
+Codex model slugs are resolved from the live catalog, but the fallback constants in `codex-models.sh`, the Claude ID `claude-haiku-4-5-20251001`, and behaviors like #31814 and the silent `haiku` alias fallback are point-in-time; re-verify after either CLI updates. The `codex features list` and `codex mcp list` commands are your friends — and don't trust an LLM's self-report of its own tool schema, ours confidently got it wrong in both directions. Verify with `--json` events or A/B tests.
 
 ## License
 
