@@ -4,7 +4,7 @@ Delegation between [Claude Code](https://code.claude.com) and the [OpenAI Codex 
 
 This is the setup I run daily as Chief Agent Officer at the Marketing + Media Alliance, extracted and stripped of anything organization-specific. Every claim below was verified against a named CLI version on a stated date, and the failure modes in the "what this cost to get right" sections are ones that actually bit.
 
-- **Claude Code → Codex.** A Fable/Opus orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet/Haiku subagents or to Codex workers on the current frontier GPT model (GPT-6 Astra at time of writing), resolved from Codex's live model catalog rather than pinned.
+- **Claude Code → Codex.** A Fable/Opus orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet/Haiku subagents or to Codex workers on GPT-6 Sol (everyday work), GPT-6 Astra (review and the hardest calls), or GPT-6 Luna (mechanical work) at time of writing, resolved from Codex's live model catalog rather than pinned.
 - **Codex → Claude Code.** A Codex session sends the same shapes of work the other way, to Haiku/Sonnet/Opus workers.
 
 Two reasons to run it either way:
@@ -27,7 +27,7 @@ This is the **orchestrator-worker pattern Anthropic benchmarked** on the Fable 5
 
 ![BrowseComp: accuracy vs cost per problem](assets/browsecomp.svg)
 
-Anthropic also benchmarked the inverse "advisor" pattern (cheap model runs every turn, calls the strong model for guidance): ~92% of Fable's score at ~63% of the price on SWE-bench Pro. The orchestrator split won on both axes, which is why this kit implements the orchestrator pattern and not the advisor. This kit extends the benchmarked setup in two ways: the worker pool spans **two model families** (Sonnet/Haiku and GPT-5.6), and worker routing is **deterministic** (pinned definitions and a flag-owning script) rather than left to the orchestrator's judgment each spawn.
+Anthropic also benchmarked the inverse "advisor" pattern (cheap model runs every turn, calls the strong model for guidance): ~92% of Fable's score at ~63% of the price on SWE-bench Pro. The orchestrator split won on both axes, which is why this kit implements the orchestrator pattern and not the advisor. This kit extends the benchmarked setup in two ways: the worker pool spans **two model families** (Sonnet/Haiku and GPT-6), and worker routing is **deterministic** (pinned definitions and a flag-owning script) rather than left to the orchestrator's judgment each spawn.
 
 Everything here was built by fixing real failure modes, each independently verified (July 2026, codex-cli 0.144.1, Claude Code 2.1.x):
 
@@ -99,19 +99,21 @@ An instruction is a nudge; a hook is a gate. Each side ships a guard that blocks
 
 Same core classes on both sides, so the mental model transfers. Each maps to a model tier, an effort level, and a write posture.
 
-On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads Codex's own server-fetched catalog (`~/.codex/models_cache.json`, refreshed on every `codex` run) and picks the `frontier` tier (top listed model by priority, following any server `upgrade` pointer) or the `fast` tier (the luna family, same pointer-following, falling back to frontier if it disappears). A new GPT release is picked up on the next call with no edit to the kit. `codex-models.sh check` shows the catalog, the resolved tiers, and whether the `for-codex/agents` TOMLs (tagged `# codex-tier:`) have drifted; `sync-agents` rewrites them.
+On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads Codex's own server-fetched catalog (`~/.codex/models_cache.json`, refreshed on every `codex` run) and resolves three tiers by model family, newest generation first: `frontier` (newest Astra), `standard` (newest Sol), and `fast` (newest Luna), each following any server `upgrade` pointer and falling back up a tier if its family disappears. It does not use catalog rank, which is picker order: on 2026-09-22 the catalog listed GPT-6 Sol above GPT-6 Astra. A new GPT release is picked up on the next call with no edit to the kit. `codex-models.sh check` shows the catalog, the resolved tiers, and whether the `for-codex/agents` TOMLs (tagged `# codex-tier:`) have drifted; `sync-agents` rewrites them.
 
 **Claude Code → Codex** (`codex-run.sh`):
 
 | Class | Tier / effort | Sandbox | For |
 |---|---|---|---|
-| `commit` | fast / medium | read-only | commit messages, renames, trivial mechanical |
-| `implement` | frontier / high | workspace-write | bounded, specified code changes |
-| `explore` | frontier / medium | read-only | ambiguous work needing repo exploration or judgment |
-| `ingest` | frontier / medium | read-only | long-context read-heavy extraction |
-| `review` | frontier / high | read-only | adversarial review, verdicts, architecture |
-| `hardest` | frontier / xhigh | read-only | after another class failed, or genuinely hardest; `--escalate` = `ultra` (max reasoning plus Codex-side automatic sub-agent delegation) |
-| `prose` | frontier / medium | read-only | readability and copy editing of reader-facing text by a second model |
+| `commit` | fast / low | read-only | commit messages, renames, trivial mechanical |
+| `implement` | standard / medium | workspace-write | bounded, specified code changes |
+| `explore` | standard / medium | read-only | ambiguous work needing repo exploration or judgment |
+| `ingest` | standard / medium | read-only | long-context read-heavy extraction |
+| `review` | frontier / medium | read-only | adversarial review, verdicts, architecture |
+| `hardest` | frontier / high | read-only | after another class failed, or genuinely hardest; `--escalate` = xhigh, `--effort ultra` adds Codex-side automatic sub-agent delegation |
+| `prose` | standard / medium | read-only | readability and copy editing of reader-facing text by a second model |
+
+`--escalate` lifts any standard class to frontier.
 
 **Codex → Claude Code** (`claude-run.sh`):
 
@@ -124,7 +126,7 @@ On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads 
 | `review` | sonnet / high | read-only | adversarial review, verdicts, architecture |
 | `hardest` | opus / xhigh | read-only | after a cheaper class failed |
 
-`--escalate` moves one rung up (allowed after a failure, or upfront when a wrong verdict triggers something irreversible). `--effort <level>` tunes effort within a class (`low`..`max`, plus `ultra` on models that support it); the model stays tier-resolved. `--model <slug>` pins a slug for one call when you need an A/B. `--fast-tier` opts into Codex's Fast service tier (2x speed, about 2x usage); the wrapper pins `service_tier="default"` otherwise, because the catalog's per-model default is Fast and `--ignore-user-config` would let it through. The design principle: **the LLM only classifies; code owns the flags.** Determinism comes from shrinking the judgment surface to one enum, not from asking the model to remember rules.
+`--escalate` moves one rung up (allowed after a failure, or upfront when a wrong verdict triggers something irreversible). `--effort <level>` tunes effort within a class (`low`..`max`, plus `ultra` on models that support it); the model stays tier-resolved. `--model <slug>` pins a slug for one call when you need an A/B. `--priority` (formerly `--fast-tier`) opts into Codex's Fast service tier (2x speed on Astra, 1.5x on Sol and Luna, at 2.5x credits); the wrapper pins `service_tier="default"` otherwise, because the catalog's per-model default is Fast and `--ignore-user-config` would let it through. The design principle: **the LLM only classifies; code owns the flags.** Determinism comes from shrinking the judgment surface to one enum, not from asking the model to remember rules.
 
 `codex-run.sh` also bakes in `--ignore-user-config` (drops ~20 MCP servers and ~50 plugins that otherwise cold-start for minutes), an explicit sandbox, `env -u OPENAI_API_KEY` (forces subscription auth), output to a file instead of stdout, `</dev/null` (background hang fix), and the [#31814](https://github.com/openai/codex/issues/31814) feature flags so a v2-parent orchestrator can actually route cheaper leaves.
 

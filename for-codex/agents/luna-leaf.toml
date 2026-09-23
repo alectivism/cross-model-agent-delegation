@@ -1,8 +1,8 @@
 # codex-tier: fast   (model line is rewritten by codex-models.sh sync-agents; do not hand-edit)
 name = "luna-leaf"
 description = "Small, well-bounded leaf task: single-file edit, commit message, rename, tiny verdict, or short focused analysis. Never use for long-context ingestion or multi-file exploration."
-model = "gpt-5.6-luna"
-model_reasoning_effort = "xhigh"
+model = "gpt-6-luna"
+model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 developer_instructions = """
 You are a leaf worker. Your task is small and fully specified in the prompt.

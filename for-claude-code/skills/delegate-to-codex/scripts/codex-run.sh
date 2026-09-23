@@ -7,35 +7,38 @@
 #   codex-run.sh <task-class> [options] "<full-context prompt>"
 #
 # Models are NOT pinned here. Each class maps to a TIER, and codex-models.sh
-# resolves the tier against Codex's live catalog ($CODEX_HOME/models_cache.json,
-# refreshed on every codex run), so a new release (GPT-6 Sol, GPT-6.x, ...)
-# is picked up automatically:
-#   frontier  top listed model by catalog priority   (2026-09-14: gpt-6-astra)
-#   fast      cheap leaf model, follows server upgrade pointers (gpt-5.6-luna)
+# resolves the tier by model FAMILY against Codex's live catalog
+# ($CODEX_HOME/models_cache.json, refreshed on every codex run), newest
+# generation first, so a new release is picked up automatically:
+#   frontier  newest Astra  (2026-09-22: gpt-6-astra)  biggest, several times Sol's usage per call
+#   standard  newest Sol    (2026-09-22: gpt-6-sol)    everyday workhorse
+#   fast      newest Luna   (2026-09-22: gpt-6-luna)   cheap leaf MODEL. A model
+#             choice, not a speed setting; nothing to do with --priority.
 #
-# Task classes (tier / effort / sandbox). Tuned for a Pro-level ChatGPT plan:
-# the frontier model is the default; `fast` only where a better model
-# genuinely adds nothing.
-#   commit     fast     / medium / read-only        commit msgs, renames, trivial mechanical
-#   implement  frontier / high   / workspace-write  bounded code change (leaf task)
-#   explore    frontier / medium / read-only        ambiguous, needs repo exploration or judgment
-#   ingest     frontier / medium / read-only        long-context read-heavy extraction
-#   review     frontier / high   / read-only        adversarial review, verdicts, architecture
-#   hardest    frontier / xhigh  / read-only        after another class failed, or genuinely hardest
-#   prose      frontier / medium / read-only        readability / copy editing of reader-facing prose,
+# Task classes (tier / effort / sandbox). Astra is reserved for judgment calls
+# where a wrong verdict is expensive; everything else runs on Sol.
+#   commit     fast     / low    / read-only        commit msgs, renames, trivial mechanical
+#   implement  standard / medium / workspace-write  bounded code change (leaf task)
+#   explore    standard / medium / read-only        ambiguous, needs repo exploration or judgment
+#   ingest     standard / medium / read-only        long-context read-heavy extraction
+#   review     frontier / medium / read-only        adversarial review, verdicts, architecture
+#   hardest    frontier / high   / read-only        after another class failed, or genuinely hardest
+#   prose      standard / medium / read-only        readability / copy editing of reader-facing prose,
 #                                                   second-model plain-language review
 #
 # Options:
-#   --escalate      one rung up (commit->frontier medium, implement->xhigh,
-#                   explore/ingest/prose->high, review->xhigh, hardest->max)
+#   --escalate      one rung up (commit->medium, implement/explore/ingest/prose
+#                   ->frontier medium, review->high, hardest->xhigh). Never ultra.
 #   --effort <e>    override effort only (low|medium|high|xhigh|max|ultra); model
 #                   stays tier-resolved; caller must state why. Applied after
 #                   --escalate. Validated against the model's supported list.
 #                   `ultra` = max reasoning + automatic sub-agent delegation:
-#                   heavy on quota, use only for hardest-class work.
+#                   heavier on quota than a single call; the `hardest --escalate` rung.
 #   --model <slug>  pin an explicit catalog slug for this call (A/B runs,
 #                   reproducing an old result). Caller must state why.
-#   --fast-tier     request the "Fast" service tier (2x speed, ~2x usage).
+#   --priority      request the PRIORITY service tier. OpenAI's published rate is
+#                   2.5x credit consumption for ~1.5x model speed (Astra, 2026-09).
+#                   Unrelated to the `fast` MODEL tier (luna). Off by default.
 #                   Default is service_tier="default" to conserve quota.
 #   --write         force workspace-write sandbox
 #   --web           enable built-in web search (stays MCP-free)
@@ -57,17 +60,24 @@ MODELS="$HERE/codex-models.sh"
 
 die() { echo "codex-run: $*" >&2; exit 2; }
 
-[ $# -ge 2 ] || die "usage: codex-run.sh <commit|implement|explore|ingest|review|hardest|prose> [--escalate] [--effort E] [--model SLUG] [--fast-tier] [--write] [--web] [-C dir] [-o file] [--schema file] [--img file]... \"<prompt>\""
+[ $# -ge 2 ] || die "usage: codex-run.sh <commit|implement|explore|ingest|review|hardest|prose> [--escalate] [--effort E] [--model SLUG] [--priority] [--verbosity V] [--ctx-mgmt] [--write] [--web] [-C dir] [-o file] [--schema file] [--img file]... \"<prompt>\""
 
 CLASS="$1"; shift
-ESCALATE=0 WRITE=0 WEB=0 FAST_TIER=0 DIR="" OUT="" EFFORT_OVERRIDE="" MODEL_OVERRIDE="" SCHEMA=""
+ESCALATE=0 WRITE=0 WEB=0 PRIORITY=0 CTX_MGMT=0 VERBOSITY="" DIR="" OUT="" EFFORT_OVERRIDE="" MODEL_OVERRIDE="" SCHEMA=""
 IMAGES=()
 while [ $# -gt 1 ]; do
   case "$1" in
     --escalate)  ESCALATE=1; shift ;;
     --effort)    EFFORT_OVERRIDE="$2"; shift 2 ;;
     --model)     MODEL_OVERRIDE="$2"; shift 2 ;;
-    --fast-tier) FAST_TIER=1; shift ;;
+    --priority)  PRIORITY=1; shift ;;
+    --fast-tier) PRIORITY=1
+                 echo "codex-run: --fast-tier is now --priority (it selects the PRIORITY SERVICE TIER, not the fast/luna model tier)" >&2
+                 shift ;;
+    --verbosity) case "$2" in low|medium|high) VERBOSITY="$2" ;;
+                   *) die "invalid --verbosity: $2 (low|medium|high)" ;; esac
+                 shift 2 ;;
+    --ctx-mgmt)  CTX_MGMT=1; shift ;;
     --write)     WRITE=1; shift ;;
     --web)       WEB=1; shift ;;
     -C)          DIR="$2"; shift 2 ;;
@@ -82,25 +92,25 @@ PROMPT="$1"
 
 SANDBOX="read-only"
 case "$CLASS" in
-  commit)    TIER=fast;     EFFORT=medium ;;
-  implement) TIER=frontier; EFFORT=high; SANDBOX="workspace-write" ;;
-  explore)   TIER=frontier; EFFORT=medium ;;
-  ingest)    TIER=frontier; EFFORT=medium ;;
-  review)    TIER=frontier; EFFORT=high ;;
-  hardest)   TIER=frontier; EFFORT=xhigh ;;
-  prose)     TIER=frontier; EFFORT=medium ;;
+  commit)    TIER=fast;     EFFORT=low ;;
+  implement) TIER=standard; EFFORT=medium; SANDBOX="workspace-write" ;;
+  explore)   TIER=standard; EFFORT=medium ;;
+  ingest)    TIER=standard; EFFORT=medium ;;
+  review)    TIER=frontier; EFFORT=medium ;;
+  hardest)   TIER=frontier; EFFORT=high ;;
+  prose)     TIER=standard; EFFORT=medium ;;
   *) die "unknown task class: $CLASS" ;;
 esac
 
 if [ "$ESCALATE" = 1 ]; then
   case "$CLASS" in
-    commit)    TIER=frontier; EFFORT=medium ;;
-    implement) EFFORT=xhigh ;;
-    explore)   EFFORT=high ;;
-    ingest)    EFFORT=high ;;
-    review)    EFFORT=xhigh ;;
-    hardest)   EFFORT=max ;;
-    prose)     EFFORT=high ;;
+    commit)    TIER=fast;     EFFORT=medium ;;
+    implement) TIER=frontier; EFFORT=medium ;;
+    explore)   TIER=frontier; EFFORT=medium ;;
+    ingest)    TIER=frontier; EFFORT=medium ;;
+    review)    EFFORT=high ;;
+    hardest)   EFFORT=xhigh ;;
+    prose)     TIER=frontier; EFFORT=medium ;;
   esac
 fi
 
@@ -128,8 +138,22 @@ fi
 
 [ "$WRITE" = 1 ] && SANDBOX="workspace-write"
 [ -n "$OUT" ] || OUT="$(mktemp "${TMPDIR:-/tmp}/codex-run.XXXXXX")"  # BSD mktemp: Xs must be trailing
-SERVICE_TIER="default"; [ "$FAST_TIER" = 1 ] && SERVICE_TIER="priority"
+SERVICE_TIER="default"
+if [ "$PRIORITY" = 1 ]; then
+  SERVICE_TIER="priority"
+  # OpenAI publishes 2.5x credit consumption for ~1.5x model speed on Astra.
+  # Rarely worth it for delegated background work, so it must be asked for explicitly.
+  echo "codex-run: WARNING --priority burns 2.5x subscription credits for 2x speed" >&2
+fi
 
+# --strict-config makes codex REJECT unknown -c keys instead of ignoring them.
+# Added 2026-09-16 and it immediately caught `preferred_auth_method`, which was
+# removed from codex somewhere before 0.153.4 (0 occurrences in the binary) and
+# had been silently dropped on every call since. The env -u OPENAI_API_KEY below
+# is what actually forces subscription auth, so nothing was broken by its loss --
+# but nothing would have told us either. Keep --strict-config: a key that gets
+# renamed upstream should fail loudly, not quietly un-pin effort or service_tier.
+#
 # --ignore-user-config is the real MCP/plugin kill switch. -c 'mcp_servers={}'
 # is a no-op: TOML table overrides MERGE, verified via `codex mcp list` 2026-07-15.
 # Auth still resolves via CODEX_HOME. Everything config.toml provided (model,
@@ -141,15 +165,19 @@ SERVICE_TIER="default"; [ "$FAST_TIER" = 1 ] && SERVICE_TIER="priority"
 # multi_agent_version) get "collab" spawn tools that HIDE model/reasoning_effort
 # by default (openai/codex#31814); these restore them so an orchestrator can
 # route leaves. Verified on sol 2026-07-16.
-ARGS=(exec --ignore-user-config -m "$MODEL"
+ARGS=(exec --ignore-user-config --strict-config -m "$MODEL"
   -c "model_reasoning_effort=\"$EFFORT\""
   -c "service_tier=\"$SERVICE_TIER\""
-  -c 'preferred_auth_method="chatgpt"'
   -c 'features.multi_agent_v2.hide_spawn_agent_metadata=false'
   -c 'features.multi_agent_v2.tool_namespace="agents"'
   -s "$SANDBOX"
   -o "$OUT")
 [ "$WEB" = 1 ] && ARGS+=(-c 'tools.web_search=true')
+[ -n "$VERBOSITY" ] && ARGS+=(-c "model_verbosity=\"$VERBOSITY\"")
+# Experimental: keeps notes + searchable history instead of squeezing everything
+# into one summary at each compaction. Worth it on long ingest/hardest runs where
+# repeated compaction loses detail. Opt-in because it is experimental.
+[ "$CTX_MGMT" = 1 ] && ARGS+=(-c 'features.context_management.experimental_mode=true')
 if [ -n "$SCHEMA" ]; then
   [ -f "$SCHEMA" ] || die "--schema file not found: $SCHEMA"
   ARGS+=(--output-schema "$SCHEMA")
@@ -166,5 +194,11 @@ fi
 
 echo "codex-run: class=$CLASS model=$MODEL ($SOURCE) effort=$EFFORT service_tier=$SERVICE_TIER sandbox=$SANDBOX web=$WEB images=${#IMAGES[@]}" >&2
 # </dev/null: with piped/absent stdin codex appends a <stdin> block and can hang
-env -u OPENAI_API_KEY codex "${ARGS[@]}" "$PROMPT" >&2 </dev/null
-echo "OUT=$OUT"
+# OUT= must ALWAYS be the last line, even if something below fails. This script
+# runs under `set -euo pipefail`, so any stray non-zero status after the codex
+# call would otherwise abort before the path is printed and strand a completed
+# result in a temp file the caller can no longer name. Observed 2026-09-15 on two
+# --web runs: codex succeeded, the report was written, and OUT= never appeared.
+trap 'echo "OUT=$OUT"' EXIT
+
+env -u OPENAI_API_KEY codex "${ARGS[@]}" "$PROMPT" >&2 </dev/null || true

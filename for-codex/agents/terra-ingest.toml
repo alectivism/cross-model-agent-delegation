@@ -1,7 +1,7 @@
-# codex-tier: frontier   (model line is rewritten by codex-models.sh sync-agents; do not hand-edit)
+# codex-tier: standard   (model line is rewritten by codex-models.sh sync-agents; do not hand-edit)
 name = "terra-ingest"
-description = "Long-context, read-heavy work: ingesting large files or many files, sweeping a repo area, extracting structured data from bulk content. Use when a Luna worker would lose track of context; cheaper than Sol."
-model = "gpt-6-astra"
+description = "Long-context, read-heavy work: ingesting large files or many files, sweeping a repo area, extracting structured data from bulk content. Use when a Luna worker would lose track of context."
+model = "gpt-6-sol"
 model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 developer_instructions = """
