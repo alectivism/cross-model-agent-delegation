@@ -210,6 +210,10 @@ The orchestrator re-reads its whole conversation every turn, including after eac
 
 `for-claude-code/agents/` ships pinned templates: researcher, deep-research, content-writer, bug-investigator, doc-writer, pr-preparer, test-writer, dependency-auditor, adversarial-verifier, and a `_template.md`. The adversarial-verifier pairs with any generator as a generator/verifier split; run the verifier on a different model (or model family, via `codex-run.sh review` or `claude-run.sh review`) than the generator, because different models catch different errors.
 
+## Related
+
+The [Claude Code Playbook](https://www.alecfoster.com/tools/claude-code-playbook) ([repo](https://github.com/alectivism/claude-code-playbook)) is the wider setup this kit came out of: MCP strategy, subagent pinning, hooks, security, and 34 dated lessons.
+
 ## For Claude Teams/Enterprise admins (Cowork)
 
 See [`docs/org-instructions-cowork.md`](docs/org-instructions-cowork.md) for a paste-ready organization instruction that propagates a lightweight version of this delegation policy to every member across Chat, Cowork, and Code, plus why an instruction alone isn't sufficient and what the plugin/managed-agent backstop looks like.
