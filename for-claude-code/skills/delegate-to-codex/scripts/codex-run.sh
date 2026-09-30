@@ -33,11 +33,12 @@
 #                   stays tier-resolved; caller must state why. Applied after
 #                   --escalate. Validated against the model's supported list.
 #                   `ultra` = max reasoning + automatic sub-agent delegation:
-#                   heavier on quota than a single call; the `hardest --escalate` rung.
+#                   heavier on quota than a single call; opt-in only via `--effort ultra`.
 #   --model <slug>  pin an explicit catalog slug for this call (A/B runs,
 #                   reproducing an old result). Caller must state why.
-#   --priority      request the PRIORITY service tier. OpenAI's published rate is
-#                   2.5x credit consumption for ~1.5x model speed (Astra, 2026-09).
+#   --priority      request the PRIORITY ("Fast") service tier. Bills 2.5x included
+#                   subscription usage (2x purchased credits); OpenAI publishes a
+#                   1.5x speedup for GPT-5.5/5.6 and no figure for GPT-6 (2026-09-30).
 #                   Unrelated to the `fast` MODEL tier (luna). Off by default.
 #                   Default is service_tier="default" to conserve quota.
 #   --write         force workspace-write sandbox
@@ -141,9 +142,9 @@ fi
 SERVICE_TIER="default"
 if [ "$PRIORITY" = 1 ]; then
   SERVICE_TIER="priority"
-  # OpenAI publishes 2.5x credit consumption for ~1.5x model speed on Astra.
+  # 2.5x included usage (2x purchased credits); speedup unpublished for GPT-6.
   # Rarely worth it for delegated background work, so it must be asked for explicitly.
-  echo "codex-run: WARNING --priority burns 2.5x subscription credits for 2x speed" >&2
+  echo "codex-run: WARNING --priority bills 2.5x subscription usage" >&2
 fi
 
 # --strict-config makes codex REJECT unknown -c keys instead of ignoring them.

@@ -41,7 +41,7 @@ FAST_FAMILY="${CODEX_FAST_FAMILY:-luna}"
 # Last-resort pins if the catalog is missing or unreadable. Update when you
 # notice them drifting; `check` warns when they disagree with the catalog.
 FALLBACK_FRONTIER="gpt-6-astra"
-FALLBACK_STANDARD="gpt-6-sol"
+FALLBACK_STANDARD="gpt-6.1-sol"
 FALLBACK_FAST="gpt-6-luna"
 STALE_DAYS=7
 
@@ -72,11 +72,13 @@ follow_upgrade() {
 
 # Newest listed model of a family: slug gpt-<ver>-<family>[-suffix]; sort by
 # numeric version desc, then priority asc. Prints nothing if the family is absent.
+# Versions are zero-padded before sorting: unpadded, jq ranks [-6] above
+# [-6,-1], so gpt-6-sol beat gpt-6.1-sol (caught 2026-09-30, codex-cli 0.159.2).
 newest_in_family() {
   jq -r --arg f "$1" '
     [ .models[] | select(.visibility=="list")
       | select(.slug | test("^gpt-[0-9.]+-" + $f + "($|-)"))
-      | . + {ver: (.slug | capture("^gpt-(?<v>[0-9.]+)-").v | split(".") | map(tonumber))} ]
+      | . + {ver: (.slug | capture("^gpt-(?<v>[0-9.]+)-").v | split(".") | map(tonumber) | (. + [0,0,0])[0:4])} ]
     | sort_by([(.ver | map(-.)), .priority]) | .[0].slug // empty' "$CACHE"
 }
 

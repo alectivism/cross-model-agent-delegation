@@ -39,8 +39,8 @@ Deviating from the mapping means passing a different class, not different flags.
 
 Two reasons, both structural rather than "Claude is better":
 
-- **Cross-family review.** Two models from the same family share blind spots. A Claude worker reviewing GPT output catches errors a second GPT pass will agree with. This is the highest-value class here, and it's why `review` sits on sonnet/high rather than the cheapest tier that would answer.
-- **Separate quota pools.** ChatGPT and Claude subscriptions bill against different limits. Pushing leaf work across the boundary makes both last longer. When one side reports quota exhaustion, the other is unaffected.
+- **Cross-family review:** Two models from the same family share blind spots. A Claude worker reviewing GPT output catches errors a second GPT pass will agree with. This is the highest-value class here, and it's why `review` sits on sonnet/high rather than the cheapest tier that would answer.
+- **Separate quota pools:** ChatGPT and Claude subscriptions bill against different limits. Pushing leaf work across the boundary makes both last longer. When one side reports quota exhaustion, the other is unaffected.
 
 ## What read-only actually means here
 
@@ -52,15 +52,16 @@ Read-only classes get `Read,Glob,Grep,TodoWrite` and nothing else. No Bash, no W
 
 `implement` (or any class with `--write`) gets the default tool set in `acceptEdits`, so it can edit files without prompting. Scope it with `-C` and keep the task fully specified.
 
-## Verified facts (2026-07-27, Claude Code 2.1.220)
+## Verified facts (2026-07-27, Claude Code 2.1.220; model pins re-verified 2026-09-30 on 2.1.286)
 
-- **`--model haiku` silently resolves to Sonnet 5.** Only `fable`, `opus`, and `sonnet` are documented aliases; `haiku` is not one, and instead of erroring it falls through to Sonnet. A haiku-tier call written with the alias bills at Sonnet and nothing in the output says so. The wrapper pins the full ID `claude-haiku-4-5-20251001`. Check any call yourself with `--output-format json` and read `modelUsage`.
+- **Pinned IDs:** `claude-haiku-4-5-20251001`, `claude-sonnet-5-5`, `claude-opus-5-5` (Fable 5.1 is `claude-fable-5-1`, not used by any class).
+- **Aliases can move under you:** On 2.1.220 `--model haiku` was not a documented alias and silently fell through to Sonnet 5, billing at Sonnet with nothing in the output saying so. On 2.1.286 it resolves to Haiku 4.5 correctly. The wrapper pins full IDs either way. Check any call yourself with `--output-format json` and read `modelUsage`.
 - **`--strict-mcp-config` is the MCP kill switch**, and it is worth using on every worker call: 123 tools drop to 29 built-ins on a fully-loaded machine. Those 94 tool schemas would otherwise load every turn. `--disable-slash-commands` drops all skills for the same reason.
-- **Do not reach for `--bare`.** It reads like the equivalent of Codex's `--ignore-user-config`, but it also forces auth to `ANTHROPIC_API_KEY` or an `apiKeyHelper` and never reads OAuth or the keychain. On a subscription it either fails outright or quietly bills the API.
-- **The prompt must go on stdin, never as a positional argument.** `--tools`, `--add-dir`, `--allowedTools`, and `--mcp-config` are all variadic, so a trailing positional prompt is swallowed as another value for whichever came last. The symptom is a confusing `Input must be provided either through stdin or as a prompt argument` even though you passed a prompt.
-- **Plan mode is the wrong lock for a worker.** `--permission-mode plan` does block writes including through Bash, but it also brings the interactive plan-mode framing: workers write plan documents into `~/.claude/plans/` and end on "shall I proceed?" instead of answering. Dropping Bash from the tool list is the stronger lock and the quieter one.
-- **There is no `-C`.** The CLI has no working-directory flag; the wrapper `cd`s and passes `--add-dir`.
-- **CLAUDE.md auto-discovery is on.** A worker started in a directory inherits that project's `CLAUDE.md`. Usually useful, occasionally not: point `-C` at the tree you actually want it reading.
+- **Do not reach for `--bare`:** It reads like the equivalent of Codex's `--ignore-user-config`, but it also forces auth to `ANTHROPIC_API_KEY` or an `apiKeyHelper` and never reads OAuth or the keychain. On a subscription it either fails outright or quietly bills the API.
+- **The prompt must go on stdin, never as a positional argument:** `--tools`, `--add-dir`, `--allowedTools`, and `--mcp-config` are all variadic, so a trailing positional prompt is swallowed as another value for whichever came last. The symptom is a confusing `Input must be provided either through stdin or as a prompt argument` even though you passed a prompt.
+- **Plan mode is the wrong lock for a worker:** `--permission-mode plan` does block writes including through Bash, but it also brings the interactive plan-mode framing: workers write plan documents into `~/.claude/plans/` and end on "shall I proceed?" instead of answering. Dropping Bash from the tool list is the stronger lock and the quieter one.
+- **There is no `-C`:** The CLI has no working-directory flag; the wrapper `cd`s and passes `--add-dir`.
+- **CLAUDE.md auto-discovery is on:** A worker started in a directory inherits that project's `CLAUDE.md`. Usually useful, occasionally not: point `-C` at the tree you actually want it reading.
 
 ## Writing the prompt
 
@@ -74,7 +75,7 @@ MCP is off and skills are off, so the worker cannot look anything up beyond the 
 
 | Mistake | Fix |
 |---|---|
-| `--model haiku` | Use the wrapper. The alias silently runs Sonnet. |
+| `--model haiku` | Use the wrapper. Aliases track whatever the CLI calls latest (on 2.1.220 `haiku` silently ran Sonnet). |
 | Prompt as a positional argument | The wrapper puts it on stdin; variadic flags eat trailing args. |
 | Asking a read-only class to run tests | No Bash. Run them here, paste the output. |
 | Starting on `hardest` because the task feels important | `review` is sonnet/high. Escalate after a failure, and say so. |

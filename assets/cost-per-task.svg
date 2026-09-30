@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="470" viewBox="0 0 720 470" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<rect x="0" y="0" width="720" height="470" rx="14" fill="#fcfcfb" stroke="#e4e3df"/>
+<text x="26" y="36" font-size="18" font-weight="700" fill="#0b0b0b">Cost per task on the Artificial Analysis Intelligence Index</text>
+<text x="26" y="56" font-size="12.5" fill="#52514e">Max effort, USD per task; index score at the end of each bar where published (Sep 2026)</text>
+<rect x="26" y="72" width="12" height="12" rx="2" fill="#2a78d6"/><text x="44" y="82" font-size="12" fill="#52514e">Anthropic</text>
+<rect x="120" y="72" width="12" height="12" rx="2" fill="#eb6834"/><text x="138" y="82" font-size="12" fill="#52514e">OpenAI</text>
+<line x1="170.0" y1="106" x2="170.0" y2="384" stroke="#ececea"/>
+<text x="170.0" y="402" font-size="11.5" fill="#52514e" text-anchor="middle">$0</text>
+<line x1="282.5" y1="106" x2="282.5" y2="384" stroke="#ececea"/>
+<text x="282.5" y="402" font-size="11.5" fill="#52514e" text-anchor="middle">$2</text>
+<line x1="395.0" y1="106" x2="395.0" y2="384" stroke="#ececea"/>
+<text x="395.0" y="402" font-size="11.5" fill="#52514e" text-anchor="middle">$4</text>
+<line x1="507.5" y1="106" x2="507.5" y2="384" stroke="#ececea"/>
+<text x="507.5" y="402" font-size="11.5" fill="#52514e" text-anchor="middle">$6</text>
+<line x1="620.0" y1="106" x2="620.0" y2="384" stroke="#ececea"/>
+<text x="620.0" y="402" font-size="11.5" fill="#52514e" text-anchor="middle">$8</text>
+<line x1="170" y1="106" x2="170" y2="384" stroke="#b9b8b2" stroke-width="1.2"/>
+<text x="160" y="129.5" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="end">GPT-6 Luna</text>
+<path d="M170 112 h1.9 a2 2 0 0 1 2 2 v22 a2 2 0 0 1 -2 2 h-1.9 z" fill="#eb6834"><title>GPT-6 Luna: $0.07/task</title></path>
+<text x="181.9" y="129.5" font-size="12" fill="#52514e">$0.07 · score not published</text>
+<text x="160" y="169.5" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="end">GPT-6.1 Sol</text>
+<path d="M170 152 h36.5 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-36.5 z" fill="#eb6834"><title>GPT-6.1 Sol: $0.72/task, index 52</title></path>
+<text x="218.5" y="169.5" font-size="12" fill="#52514e">$0.72 · score 52</text>
+<text x="160" y="209.5" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="end">GPT-6 Sol</text>
+<path d="M170 192 h55.6 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-55.6 z" fill="#eb6834"><title>GPT-6 Sol: $1.06/task</title></path>
+<text x="237.6" y="209.5" font-size="12" fill="#52514e">$1.06 · score not published</text>
+<text x="160" y="249.5" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="end">GPT-6 Astra</text>
+<path d="M170 232 h179.4 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-179.4 z" fill="#eb6834"><title>GPT-6 Astra: $3.26/task, index 53</title></path>
+<text x="361.4" y="249.5" font-size="12" fill="#52514e">$3.26 · score 53</text>
+<text x="160" y="289.5" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="end">Claude Opus 5.5</text>
+<path d="M170 272 h332.4 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-332.4 z" fill="#2a78d6"><title>Claude Opus 5.5: $5.98/task, index 58</title></path>
+<text x="514.4" y="289.5" font-size="12" fill="#52514e">$5.98 · score 58</text>
+<text x="160" y="329.5" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="end">Claude Sonnet 5.5</text>
+<path d="M170 312 h423.5 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-423.5 z" fill="#2a78d6"><title>Claude Sonnet 5.5: $7.60/task, index 56</title></path>
+<text x="605.5" y="329.5" font-size="12" fill="#52514e">$7.60 · score 56*</text>
+<text x="160" y="369.5" font-size="12.5" font-weight="600" fill="#0b0b0b" text-anchor="end">Claude Fable 5.1</text>
+<path d="M170 352 h425.2 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-425.2 z" fill="#2a78d6"><title>Claude Fable 5.1: $7.63/task, index 53</title></path>
+<text x="607.2" y="369.5" font-size="12" fill="#52514e">$7.63 · score 53</text>
+<text x="395.0" y="424" font-size="12" fill="#52514e" text-anchor="middle">USD per index task</text>
+<text x="26" y="438" font-size="11" fill="#52514e">* Prerelease deployment; a structured-output bug was fixed at launch. Fable 5.1 ran at max with fallback.</text>
+<text x="26" y="454" font-size="11" fill="#52514e">Source: artificialanalysis.ai articles dated 2026-09-09, 09-22, 09-28, 09-29 and the Opus 5.5 model page.</text>
+</svg>

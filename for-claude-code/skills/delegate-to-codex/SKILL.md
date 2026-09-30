@@ -18,21 +18,21 @@ Never hand-assemble `codex exec` flags. Classify the task into one class and run
 
 ## Models are resolved, not pinned
 
-The wrapper never hard-codes a model slug. Each class maps to a **tier**, and `scripts/codex-models.sh` resolves the tier against Codex's own server-fetched catalog at `~/.codex/models_cache.json` (every `codex` run refreshes it with an ETag check; the wrapper's own calls keep it fresh). New releases (GPT-6 Sol, GPT-6.x, whatever follows) are picked up on the next call with no edit here.
+The wrapper never hard-codes a model slug. Each class maps to a **tier**, and `scripts/codex-models.sh` resolves the tier against Codex's own server-fetched catalog at `~/.codex/models_cache.json` (every `codex` run refreshes it with an ETag check; the wrapper's own calls keep it fresh). New releases (GPT-6.1 Sol, whatever follows) are picked up on the next call with no edit here.
 
-| Tier | Resolution rule | Resolves to (2026-09-22) |
+| Tier | Resolution rule | Resolves to (2026-09-30, codex-cli 0.159.2) |
 |---|---|---|
 | `frontier` | newest listed `gpt-<ver>-astra` (`$CODEX_FRONTIER_FAMILY`), then any server `upgrade` pointer; if no Astra is listed, top model by priority, with a warning | `gpt-6-astra` |
-| `standard` | newest listed `gpt-<ver>-sol` (`$CODEX_STANDARD_FAMILY`); falls back up to frontier | `gpt-6-sol` |
+| `standard` | newest listed `gpt-<ver>-sol` (`$CODEX_STANDARD_FAMILY`); falls back up to frontier | `gpt-6.1-sol` |
 | `fast` | newest listed `gpt-<ver>-luna` (`$CODEX_FAST_FAMILY`); falls back up to standard | `gpt-6-luna` |
 
-"Newest" is the highest version parsed from the slug, ties broken by catalog priority. Tiers resolve by family, not catalog rank, because `priority` is the model-picker order, not capability: on 2026-09-22 the catalog listed `gpt-6-sol` at p0 above `gpt-6-astra` at p1, and rank-based resolution swapped the frontier and standard tiers. New models only appear once the CLI is new enough (GPT-6 Sol and Luna arrived with codex-cli 0.156.0), so update the CLI when OpenAI announces a model.
+"Newest" is the highest version parsed from the slug (zero-padded, so `6.1` outranks `6`), ties broken by catalog priority. Tiers resolve by family, not catalog rank, because `priority` is the model-picker order, not capability: on 2026-09-22 the catalog listed `gpt-6-sol` at p0 above `gpt-6-astra` at p1, and rank-based resolution swapped the frontier and standard tiers. New models only appear once the CLI is new enough (GPT-6 Sol and Luna arrived with codex-cli 0.156.0, GPT-6.1 Sol with 0.159.x), so update the CLI when OpenAI announces a model.
 
 Maintenance: `codex-models.sh check` prints the catalog, the resolved tiers, and whether `~/.codex/agents/*.toml` pins have drifted; `codex-models.sh sync-agents` rewrites them. Run `check` whenever OpenAI announces a model, or if a run's stderr line shows an unexpected slug. The one thing that still needs a human is the fallback constants and this table's "resolves to" column.
 
 ## Task classes
 
-Astra, the frontier tier, costs several times Sol's usage per call, so it is reserved for review and the hardest calls, where a wrong verdict is expensive. Everything else runs on Sol, with Luna for mechanical work. Medium effort is the default; the catalog gives every current model a `default_reasoning_level` of `medium`.
+Astra, the frontier tier, costs 5x Sol's usage per token (Codex credits per 1M tokens: Astra 250 in / 1,250 out, GPT-6.1 Sol 50 / 250, GPT-6 Luna 2.5 / 12.5; [Codex pricing](https://learn.chatgpt.com/docs/pricing), 2026-09-30), so it is reserved for review and the hardest calls, where a wrong verdict is expensive. Everything else runs on Sol, with Luna for mechanical work. Medium effort is the default; the catalog gives every current model a `default_reasoning_level` of `medium`.
 
 | Class | Tier / effort | Use for |
 |---|---|---|
@@ -48,7 +48,7 @@ Options: `--escalate` (one rung up: commit→medium, implement/explore/ingest/pr
 
 | Option | Maps to | Notes |
 |---|---|---|
-| `--priority` (was `--fast-tier`) | `service_tier="priority"` | "Fast" service tier: 2x speed on Astra, 1.5x on Sol and Luna, at 2.5x credit consumption. Unrelated to the `fast` model tier. Default is `service_tier="default"`; the catalog marks every model `default_service_tier: priority`, which `--ignore-user-config` would otherwise let through. |
+| `--priority` (was `--fast-tier`) | `service_tier="priority"` | "Fast" service tier: 2.5x included subscription usage (2x on purchased credits). OpenAI documents a 1.5x speedup for GPT-5.5/5.6 and publishes no per-model figure for GPT-6 ([Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed), 2026-09-30). Unrelated to the `fast` model tier. Default is `service_tier="default"`; the catalog marks every model `default_service_tier: priority`, which `--ignore-user-config` would otherwise let through. |
 | `--effort ultra` | `model_reasoning_effort="ultra"` | Max reasoning plus automatic Codex-side sub-agent delegation. See the Ultra section below. |
 | `--schema <file>` | `--output-schema` | JSON Schema constraining the final message; the `OUT=` file then holds strict JSON. Use whenever you parse the result mechanically. |
 | `--img <file>` | `--image=<file>` | Repeatable (one `--img` per file). Attaches images for multimodal reading (PDF table/figure pages where `pdftotext` loses alignment). The wrapper uses the equals form because clap's variadic `-i file` swallows the prompt. |
@@ -61,8 +61,8 @@ Deviating from the mapping means passing a different class, not different flags.
 
 Codex output is a claim about the world, not an observation of it. Before you act on it or report it to the user:
 
-- **Re-run any check it says it ran.** "Tests pass", "the import works", "no network calls" are assertions. Run the same command yourself and record what you saw. If you cannot re-run it, label the finding **reported**, not **observed**.
-- **Spot-check the diff, not the summary.** For `implement` and `hardest`, read the actual changed lines. A confident summary can describe code that was never written.
+- **Re-run any check it says it ran:** "Tests pass", "the import works", "no network calls" are assertions. Run the same command yourself and record what you saw. If you cannot re-run it, label the finding **reported**, not **observed**.
+- **Spot-check the diff, not the summary:** For `implement` and `hardest`, read the actual changed lines. A confident summary can describe code that was never written.
 - **Distinguish "found nothing" from "did not look."** If Codex returns a clean verdict, confirm from its output that it actually inspected the relevant files. With `--ignore-user-config` it has no MCP and cannot look anything up, so a gap in the prompt becomes a silent gap in the review.
 - **Never chain unverified output into an irreversible action** (commit, push, send, publish, delete). Verify first, or escalate to a second class and compare.
 
@@ -71,7 +71,7 @@ State which of these you did. "Codex reported X; I re-ran `pytest` and observed 
 ## Model facts (verified 2026-09-14, codex-cli 0.153.4)
 
 - Catalog (`~/.codex/models_cache.json`) fields that matter: `priority` (1 = top), `visibility` (`list`/`hide`), `upgrade` (server-set successor pointer, null today), `supported_reasoning_levels`, `multi_agent_version`, `default_service_tier`.
-- Listed 2026-09-22 (codex-cli 0.156.0), by priority: gpt-6-sol (0), gpt-6-astra (1, "most capable"), gpt-6-luna (2), gpt-5.6-sol (4), gpt-5.6-terra (5), gpt-5.6-luna (6), gpt-5.5 (7, retires 2026-10-14). Hidden: gpt-reserve, codex-auto-review. All GPT-6 models: 272k context, medium default effort, v2 multi-agent; Astra and Sol list `ultra`, Luna stops at `max`.
+- Listed 2026-09-30 (codex-cli 0.159.2), by priority: gpt-6.1-sol (0, "latest workhorse"), gpt-6-astra (2, "frontier intelligence"), gpt-6-sol (3, "previous generation"), gpt-6-luna (4), gpt-5.6-sol (5), gpt-5.6-terra (6), gpt-5.6-luna (7), gpt-5.5 (8, retires 2026-10-14). Hidden: gpt-reserve, codex-auto-review. All GPT-6 models: 272k context, medium default effort, v2 multi-agent; Astra and Sol list `ultra`, Luna stops at `max`.
 - The config.toml default model is never load-bearing: the Codex desktop app rewrites it when the user changes the picker. The wrapper always pins `-m` from the resolved tier.
 - GPT-5.6 Luna (observed): fine on small bounded tasks, recall degrades over long contexts; GPT-6 Luna not yet characterized. It is the `fast` tier only; nothing routes ingestion or multi-file sweeps to it.
 - MCP suppression is `--ignore-user-config` (drops all MCP servers AND plugins; auth survives via CODEX_HOME). `-c 'mcp_servers={}'` is a NO-OP: TOML table overrides merge. To keep some servers, use `-c 'mcp_servers.<name>.enabled=false'` per server.
@@ -84,7 +84,7 @@ State which of these you did. "Codex reported X; I re-ran `pytest` and observed 
 How to invoke:
 
 ```bash
-codex-run.sh hardest --escalate "<prompt>"        # hardest's escalation rung is ultra
+codex-run.sh hardest --effort ultra "<prompt>"    # ultra is opt-in; --escalate stops at xhigh
 codex-run.sh review --effort ultra "<prompt>"      # any frontier class, state why
 ```
 

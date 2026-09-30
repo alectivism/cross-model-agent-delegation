@@ -4,8 +4,8 @@ Delegation between [Claude Code](https://code.claude.com) and the [OpenAI Codex 
 
 This is the setup I run daily as Chief Agent Officer at the Marketing + Media Alliance, extracted and stripped of anything organization-specific. Every claim below was verified against a named CLI version on a stated date, and the failure modes in the "what this cost to get right" sections are ones that actually bit.
 
-- **Claude Code → Codex.** A Fable/Opus orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet/Haiku subagents or to Codex workers on GPT-6 Sol (everyday work), GPT-6 Astra (review and the hardest calls), or GPT-6 Luna (mechanical work) at time of writing, resolved from Codex's live model catalog rather than pinned.
-- **Codex → Claude Code.** A Codex session sends the same shapes of work the other way, to Haiku/Sonnet/Opus workers.
+- **Claude Code → Codex:** An Opus 5.5 or Fable 5.1 orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet 5.5/Haiku 4.5 subagents or to Codex workers on GPT-6.1 Sol (everyday work), GPT-6 Astra (review and the hardest calls), or GPT-6 Luna (mechanical work). Codex models are resolved from the live catalog at call time, not pinned.
+- **Codex → Claude Code:** A Codex session sends the same shapes of work the other way, to Haiku 4.5, Sonnet 5.5, and Opus 5.5 workers.
 
 Two reasons to run it either way:
 
@@ -21,13 +21,63 @@ You don't invoke any of this by hand. You talk to whichever CLI you're in; the s
 
 ![One orchestrator, two pools of cheaper workers](assets/architecture.svg)
 
-## Why this pattern (the evidence)
+## Current models (2026-09-30)
 
-This is the **orchestrator-worker pattern Anthropic benchmarked** on the Fable 5 launch: the strong model plans and delegates, cheap workers loop to completion, and most tokens bill at the worker rate. On BrowseComp (full set), Fable 5 orchestrating Sonnet 5 workers scored 86.8% at $18.53/problem vs 90.8% at $40.56 for all-Fable — **96% of the accuracy at 46% of the cost** — while all-Sonnet managed only 77.8%. ([the-decoder coverage](https://the-decoder.com/anthropics-fix-for-fable-5s-high-cost-is-turning-it-into-a-manager-that-delegates-to-sonnet-5/), [pattern guide](https://datasciencedojo.com/blog/claude-code-fable-5-orchestrator-workflow/))
+What each wrapper routes to today, with list prices. API prices are USD per million uncached input / output tokens at standard processing and standard context length (Astra bills more above 272K input). Codex credits are the Standard-speed rate a ChatGPT-plan Codex call burns per million uncached input / output tokens.
 
-![BrowseComp: accuracy vs cost per problem](assets/browsecomp.svg)
+| Provider | Model | Role in this kit | API $/M in / out | Codex credits/M in / out | Released |
+|---|---|---|---|---|---|
+| Anthropic | Fable 5.1 (`claude-fable-5-1`) | orchestrator (optional) | $10 / $50 | n/a | 2026-09-01 |
+| Anthropic | Opus 5.5 (`claude-opus-5-5`) | orchestrator; `hardest` worker | $4 / $20 | n/a | 2026-09-22 |
+| Anthropic | Sonnet 5.5 (`claude-sonnet-5-5`) | `implement`, `explore`, `review` workers | $2 / $10 | n/a | 2026-09-28 |
+| Anthropic | Haiku 4.5 (`claude-haiku-4-5-20251001`) | `commit`, `ingest` workers | $1 / $5 | n/a | 2025-10-15 |
+| OpenAI | GPT-6 Astra (`gpt-6-astra`) | `frontier` tier: `review`, `hardest` | $10 / $50 | 250 / 1,250 | 2026-09-03 |
+| OpenAI | GPT-6.1 Sol (`gpt-6.1-sol`) | `standard` tier: `implement`, `explore`, `ingest`, `prose` | $2 / $10 | 50 / 250 | 2026-09-29 |
+| OpenAI | GPT-6 Luna (`gpt-6-luna`) | `fast` tier: `commit` | $0.10 / $0.50 | 2.5 / 12.5 | 2026-09-22 |
 
-Anthropic also benchmarked the inverse "advisor" pattern (cheap model runs every turn, calls the strong model for guidance): ~92% of Fable's score at ~63% of the price on SWE-bench Pro. The orchestrator split won on both axes, which is why this kit implements the orchestrator pattern and not the advisor. This kit extends the benchmarked setup in two ways: the worker pool spans **two model families** (Sonnet/Haiku and GPT-6), and worker routing is **deterministic** (pinned definitions and a flag-owning script) rather than left to the orchestrator's judgment each spawn.
+Anthropic has said Haiku 5.5 will follow Sonnet 5.5; until it ships, Haiku 4.5 is the cheap Claude tier. GPT-6 Sol (2026-09-22) is still listed but the catalog now labels it "previous generation", and the resolver picks GPT-6.1 Sol. Sources: Anthropic launch pages for [Opus 5.5](https://www.anthropic.com/claude-opus-5-5) and [Sonnet 5.5](https://www.anthropic.com/claude-sonnet-5-5), Anthropic [release notes](https://support.claude.com/en/articles/12138966-release-notes), the [OpenAI API changelog](https://developers.openai.com/api/docs/changelog), and [Codex pricing](https://learn.chatgpt.com/docs/pricing), all read 2026-09-30.
+
+## Cost per task (independent benchmarks)
+
+List price per token says little about what a task costs, because models differ in how many tokens they spend. These are the published per-task figures for the models above. The units differ between sources, so compare within a row group, never across.
+
+![Cost per task on the Artificial Analysis Intelligence Index](assets/cost-per-task.svg)
+
+| Source and metric | Model (effort) | Score | Cost |
+|---|---|---|---|
+| [Artificial Analysis](https://artificialanalysis.ai/articles/benchmarking-gpt-6-astra) Intelligence Index, $/task | GPT-6 Astra (max) | 53 | $3.26 |
+| | Claude Fable 5.1 (max, with fallback) | 53 | $7.63 |
+| | [Claude Opus 5.5](https://artificialanalysis.ai/models/claude-opus-5-5/) (max) | 58 | $5.98 |
+| | [Claude Sonnet 5.5](https://artificialanalysis.ai/articles/claude-sonnet-5-5) (max, prerelease build) | 56 | $7.60 |
+| | [GPT-6.1 Sol](https://artificialanalysis.ai/articles/gpt-6-1-sol-replaces-gpt-6-sol-after-just-7-days-with-near-astra-intelligence) (max) | 52 | $0.72 |
+| | [GPT-6 Sol / GPT-6 Luna](https://artificialanalysis.ai/articles/gpt-6-sol-and-luna-push-the-cost-efficiency-frontier) (max) | not published | $1.06 / $0.07 |
+| [Vals](https://www.vals.ai/comparisons/anthropic_claude-fable-5-1-vs-openai_gpt-6-astra) Terminal-Bench 4.0, $/test | GPT-6 Astra | 59.6% | $9.58 |
+| | Claude Fable 5.1 | 58.1% | $17.18 |
+| [Anthropic](https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence) SWE-bench Pro (478-task internal subset), $/solved task | Claude Opus 5.5 (medium) | 92.8% | $0.22 |
+| | Claude Opus 5.5 (low) | 87.4% | $0.12 |
+| | Claude Fable 5.1 (default) | 92.3% | $1.19 |
+| | Claude Fable 5.1 (low) | 88.6% | $0.54 |
+| | Claude Sonnet 5 (default) | 77.4% | $0.84 |
+
+What this means for routing:
+
+- **GPT-6.1 Sol is the cheapest near-frontier worker on the board:** One index point below Astra at 22% of its cost per task, which is why every everyday Codex class runs on the `standard` tier and Astra is reserved for `review` and `hardest`.
+- **Opus 5.5 displaced Fable 5.1 as the default Claude orchestrator:** On Anthropic's own SWE-bench Pro subset it matches Fable 5.1's score for under a fifth of the cost per solved task, and it leads the Claude models on the Intelligence Index.
+- **Cheaper per token can cost more per task:** Fable 5.1 at low effort beat Sonnet 5 by 11 points for 35% less per solved task despite a 5x token price, because it finished in fewer tokens. Compare model and effort configurations by measured cost per solved task, not by token price.
+- The Artificial Analysis Sonnet 5.5 run used a prerelease deployment with a structured-output bug that was fixed at launch; treat its $/task as provisional.
+
+## When delegation pays (the evidence)
+
+This kit implements the orchestrator-worker pattern: a strong model plans and delegates, cheaper workers loop to completion, only summaries come back. Anthropic's September 2026 [cost and intelligence guide](https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence) is the most careful public measurement of when that pays, and it is narrower than the launch-week coverage suggested:
+
+- **It pays on work too big for one context:** On a 21.6M-token corpus sweep (14 Python packages, 130 planted defects), a Fable 5.1 lead over 25 Sonnet 5 workers cost 47% to 55% less than Fable 5.1 alone ($468 to $552 per episode solo), finished in about 2.3 hours instead of 15 to 20, and scored 10 to 12 points below Fable's best while beating Sonnet 5 alone outright.
+- **It pays as insurance against the cost tail on routine work:** On a slice of easy BrowseComp problems, Fable 5 coordinating one Sonnet 5 worker cost about half of Fable 5 alone on average and about a third at the 90th percentile ($12 vs $33).
+- **It does not pay on hard, single-thread work:** On the full BrowseComp set, Fable 5 alone reached the coordinator's accuracy at 22% to 30% lower cost. Anthropic's summary: when work is one dependent chain or fits in one context, the plan, handoff, and merge cost more than the orchestrator's own model at lower effort.
+- **The advisor pattern (cheap executor, strong model on call) is a quality lever, not a savings lever:** Opus 5.5 at high effort with a Fable 5.1 advisor scored 1.7 points above Opus 5.5 alone at high effort, a gap Anthropic calls "at the edge of run-to-run noise", for about 2.1x the money.
+
+Launch coverage in July ([the-decoder](https://the-decoder.com/anthropics-fix-for-fable-5s-high-cost-is-turning-it-into-a-manager-that-delegates-to-sonnet-5/)) reported the orchestrator reaching 96% of Fable 5's BrowseComp score at 46% of the cost. The current guide reports a different full-set comparison, with Fable 5 alone matching coordinator accuracy at 22% to 30% lower cost; whether the two setups are comparable is not documented. Earlier versions of this README quoted exact per-problem figures from that period that we can no longer source, so they have been removed.
+
+That is why this kit routes by class instead of delegating everything: bulky, parallel, read-heavy work (`explore`, `ingest`, multi-file `implement`) goes out; a single hard reasoning chain stays with the orchestrator or goes to one `hardest` call. It also extends Anthropic's setup in two ways: the worker pool spans **two model families** (Claude and GPT-6), and routing is **deterministic** (pinned definitions and a flag-owning script) rather than left to the orchestrator's judgment on each spawn.
 
 Everything here was built by fixing real failure modes, each independently verified (July 2026, codex-cli 0.144.1, Claude Code 2.1.x):
 
@@ -99,9 +149,9 @@ An instruction is a nudge; a hook is a gate. Each side ships a guard that blocks
 
 Same core classes on both sides, so the mental model transfers. Each maps to a model tier, an effort level, and a write posture.
 
-On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads Codex's own server-fetched catalog (`~/.codex/models_cache.json`, refreshed on every `codex` run) and resolves three tiers by model family, newest generation first: `frontier` (newest Astra), `standard` (newest Sol), and `fast` (newest Luna), each following any server `upgrade` pointer and falling back up a tier if its family disappears. It does not use catalog rank, which is picker order: on 2026-09-22 the catalog listed GPT-6 Sol above GPT-6 Astra. A new GPT release is picked up on the next call with no edit to the kit. `codex-models.sh check` shows the catalog, the resolved tiers, and whether the `for-codex/agents` TOMLs (tagged `# codex-tier:`) have drifted; `sync-agents` rewrites them.
+On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads Codex's own server-fetched catalog (`~/.codex/models_cache.json`, refreshed on every `codex` run) and resolves three tiers by model family, newest generation first: `frontier` (newest Astra), `standard` (newest Sol), and `fast` (newest Luna), each following any server `upgrade` pointer and falling back up a tier if its family disappears. It does not use catalog rank, which is picker order: on 2026-09-22 the catalog listed GPT-6 Sol above GPT-6 Astra. Versions are compared zero-padded, so `gpt-6.1-sol` outranks `gpt-6-sol`; the original unpadded sort ranked `6` above `6.1`, so the first catalog to list both kept routing to the older Sol until the fix on 2026-09-30. A new GPT release is picked up on the next call with no edit to the kit, once the CLI is new enough to list it (GPT-6.1 Sol needs codex-cli 0.159.x). `codex-models.sh check` shows the catalog, the resolved tiers, and whether the installed agent TOMLs in `$CODEX_HOME/agents` (normally `~/.codex/agents`, copied from `for-codex/agents`, tagged `# codex-tier:`) have drifted; `sync-agents` rewrites them.
 
-**Claude Code → Codex** (`codex-run.sh`):
+**Claude Code to Codex** (`codex-run.sh`):
 
 | Class | Tier / effort | Sandbox | For |
 |---|---|---|---|
@@ -115,7 +165,7 @@ On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads 
 
 `--escalate` lifts any standard class to frontier.
 
-**Codex → Claude Code** (`claude-run.sh`):
+**Codex to Claude Code** (`claude-run.sh`):
 
 | Class | Model / effort | Tools | For |
 |---|---|---|---|
@@ -126,7 +176,7 @@ On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads 
 | `review` | sonnet / high | read-only | adversarial review, verdicts, architecture |
 | `hardest` | opus / xhigh | read-only | after a cheaper class failed |
 
-`--escalate` moves one rung up (allowed after a failure, or upfront when a wrong verdict triggers something irreversible). `--effort <level>` tunes effort within a class (`low`..`max`, plus `ultra` on models that support it); the model stays tier-resolved. `--model <slug>` pins a slug for one call when you need an A/B. `--priority` (formerly `--fast-tier`) opts into Codex's Fast service tier (2x speed on Astra, 1.5x on Sol and Luna, at 2.5x credits); the wrapper pins `service_tier="default"` otherwise, because the catalog's per-model default is Fast and `--ignore-user-config` would let it through. The design principle: **the LLM only classifies; code owns the flags.** Determinism comes from shrinking the judgment surface to one enum, not from asking the model to remember rules.
+`--escalate` moves one rung up on either side (allowed after a failure, or upfront when a wrong verdict triggers something irreversible). `--effort <level>` tunes effort within a class on either side (`low`..`max`; `codex-run.sh` also accepts `ultra` on models that support it) while the model stays class-assigned. The rest are `codex-run.sh` only: `--model <slug>` pins a slug for one call when you need an A/B, and `--priority` (formerly `--fast-tier`) opts into Codex's Fast service tier, which bills 2.5x included subscription usage (2x on purchased credits); OpenAI documents a 1.5x speedup for GPT-5.5/5.6 and publishes no per-model figure for GPT-6 ([Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed)); the wrapper pins `service_tier="default"` otherwise, because the catalog's per-model default is Fast and `--ignore-user-config` would let it through. The design principle: **the LLM only classifies; code owns the flags.** Determinism comes from shrinking the judgment surface to one enum, not from asking the model to remember rules.
 
 `codex-run.sh` also bakes in `--ignore-user-config` (drops ~20 MCP servers and ~50 plugins that otherwise cold-start for minutes), an explicit sandbox, `env -u OPENAI_API_KEY` (forces subscription auth), output to a file instead of stdout, `</dev/null` (background hang fix), and the [#31814](https://github.com/openai/codex/issues/31814) feature flags so a v2-parent orchestrator can actually route cheaper leaves.
 
@@ -136,29 +186,29 @@ On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads 
 
 Every one of these was found by running it, not by reading the docs:
 
-- **`--model haiku` silently runs Sonnet 5.** Only `fable`, `opus`, and `sonnet` are documented aliases. `haiku` isn't one, and rather than erroring it falls through to Sonnet, so a haiku-tier call bills at Sonnet with nothing in the output saying so. Proof is in `--output-format json` → `modelUsage`. The wrapper pins `claude-haiku-4-5-20251001`.
-- **`--strict-mcp-config` took a fully loaded machine from 123 tools to 29 built-ins.** Those 94 tool schemas load every turn otherwise.
-- **`--bare` is a trap.** It looks like the equivalent of Codex's `--ignore-user-config`, but it also forces auth to `ANTHROPIC_API_KEY` or an `apiKeyHelper` and never reads OAuth or the keychain. On a subscription it either fails or quietly bills the API.
-- **The prompt must go on stdin.** `--tools`, `--add-dir`, `--allowedTools`, and `--mcp-config` are variadic, so a trailing positional prompt is swallowed as another value. The symptom is `Input must be provided either through stdin or as a prompt argument` when you clearly passed one.
-- **Plan mode is the wrong lock for a worker.** `--permission-mode plan` does block writes including through Bash, but it drags the interactive framing along: workers write plan documents into `~/.claude/plans/` and end on "shall I proceed?". Dropping Bash from the allowlist is the stronger lock and the quieter one. Confirmed by asking a `review` worker to overwrite a file: it declines in one line and the file is untouched.
-- **There is no `-C`.** The CLI has no working-directory flag; the wrapper `cd`s and passes `--add-dir`.
+- **`--model haiku` silently ran Sonnet 5:** On 2.1.220 `haiku` wasn't a documented alias and fell through to Sonnet, so a haiku-tier call billed at Sonnet with nothing in the output saying so. Proof is in `--output-format json` → `modelUsage`. By 2.1.286 (re-checked 2026-09-30) all four aliases resolve correctly, but the wrapper still pins full IDs (`claude-haiku-4-5-20251001`, `claude-sonnet-5-5`, `claude-opus-5-5`) so an alias change can never move a tier silently.
+- **`--strict-mcp-config` took a fully loaded machine from 123 tools to 29 built-ins:** Those 94 tool schemas load every turn otherwise.
+- **`--bare` is a trap:** It looks like the equivalent of Codex's `--ignore-user-config`, but it also forces auth to `ANTHROPIC_API_KEY` or an `apiKeyHelper` and never reads OAuth or the keychain. On a subscription it either fails or quietly bills the API.
+- **The prompt must go on stdin:** `--tools`, `--add-dir`, `--allowedTools`, and `--mcp-config` are variadic, so a trailing positional prompt is swallowed as another value. The symptom is `Input must be provided either through stdin or as a prompt argument` when you clearly passed one.
+- **Plan mode is the wrong lock for a worker:** `--permission-mode plan` does block writes including through Bash, but it drags the interactive framing along: workers write plan documents into `~/.claude/plans/` and end on "shall I proceed?". Dropping Bash from the allowlist is the stronger lock and the quieter one. Confirmed by asking a `review` worker to overwrite a file: it declines in one line and the file is untouched.
+- **There is no `-C`:** The CLI has no working-directory flag; the wrapper `cd`s and passes `--add-dir`.
 
 ## Claude-side subagents: how model/effort pinning actually works
 
 Facts current as of Claude Code 2.1.x ([docs](https://code.claude.com/docs/en/sub-agents)):
 
 - Agent frontmatter supports **`model:`** (`sonnet`, `opus`, `haiku`, full ID, or `inherit`) and **`effort:`** (`low`..`max`). Both default to inheriting the session.
-- **Model is settable at call time; effort is not.** The Agent tool exposes a per-call `model` override, but no effort parameter — effort only exists in definitions. So an instruction like "scale reasoning effort to difficulty" is unactionable for ad-hoc spawns; the orchestrator has no knob to turn. If you want effort routing, ship named agents with effort presets and instruct by agent name. That asymmetry is why this kit is definitions-first.
-- **There is no global "all subagents use X" setting.** Pinning happens per definition (frontmatter) or per call (the `model` parameter on the Agent tool).
-- **One-off/undefined subagents and built-in types (`general-purpose`, `Explore`, `Plan`, `fork`) inherit the session model.** An Opus session that spawns an ad-hoc researcher runs it on Opus unless the call passes `model` explicitly. This is the single biggest silent cost leak; the templates in `for-claude-code/agents/` exist to close it.
-- **Bake the return format into each definition.** A subagent's report is appended to the main conversation and re-read on every subsequent turn, so a worker that dumps raw output taxes the orchestrator forever after. Every template in `for-claude-code/agents/` specifies what its final message must contain.
-- Distribution: user-level (`~/.claude/agents/`), project (`.claude/agents/`), Enterprise **managed subagents** (managed settings directory; override same-named user/project agents), or a **plugin `agents/` directory** — the packaging unit that also reaches Cowork. Org admins can force-install plugins (Organization settings → Plugins, or `managed-settings.json`); note CLI users still install with `/plugin install`, and plugin agents ignore `hooks`, `mcpServers`, and `permissionMode` frontmatter. Skills cannot define agents; they can only reference them.
+- **Model is settable at call time; effort is not:** The Agent tool exposes a per-call `model` override, but no effort parameter; effort only exists in definitions. So an instruction like "scale reasoning effort to difficulty" is unactionable for ad-hoc spawns; the orchestrator has no knob to turn. If you want effort routing, ship named agents with effort presets and instruct by agent name. That asymmetry is why this kit is definitions-first.
+- **There is no global "all subagents use X" setting:** Pinning happens per definition (frontmatter) or per call (the `model` parameter on the Agent tool).
+- **One-off/undefined subagents and built-in types (`general-purpose`, `Explore`, `Plan`, `fork`) inherit the session model:** An Opus session that spawns an ad-hoc researcher runs it on Opus unless the call passes `model` explicitly. This is the single biggest silent cost leak; the templates in `for-claude-code/agents/` exist to close it.
+- **Bake the return format into each definition:** A subagent's report is appended to the main conversation and re-read on every subsequent turn, so a worker that dumps raw output taxes the orchestrator forever after. Every template in `for-claude-code/agents/` specifies what its final message must contain.
+- Distribution: user-level (`~/.claude/agents/`), project (`.claude/agents/`), Enterprise **managed subagents** (managed settings directory; override same-named user/project agents), or a **plugin `agents/` directory**, the packaging unit that also reaches Cowork. Org admins can force-install plugins (Organization settings → Plugins, or `managed-settings.json`); note CLI users still install with `/plugin install`, and plugin agents ignore `hooks`, `mcpServers`, and `permissionMode` frontmatter. Skills cannot define agents; they can only reference them.
 
 ### The token economics (why this saves money at all)
 
-The orchestrator re-reads its whole conversation every turn, including after each worker returns. Delegation pays because it controls what enters that transcript: a worker burns its tokens in a disposable context and hands back a tight brief, so 50k tokens of search noise become 500 tokens of summary, and prompt caching discounts the re-read of everything older. Two costs to respect: spawning has fixed overhead (system prompt + tool definitions load per worker, and multi-agent sessions run roughly 4-7x the raw tokens of single-agent), so tiny tasks are a net loss inline-able in one call; and nesting beyond two layers usually loses to context blindness — each layer only knows what its parent passed down. Fan out when the work is exploratory and bulky, stay inline when it's small, and stop at orchestrator → worker except when the middle layer genuinely compresses (a researcher fanning out per-source readers).
+The orchestrator re-reads its whole conversation every turn, including after each worker returns. Delegation pays because it controls what enters that transcript: a worker burns its tokens in a disposable context and hands back a tight brief, so 50k tokens of search noise become 500 tokens of summary, and prompt caching discounts the re-read of everything older. Two costs to respect: spawning has fixed overhead (system prompt + tool definitions load per worker, and multi-agent sessions run roughly 4-7x the raw tokens of single-agent), so tiny tasks are a net loss inline-able in one call; and nesting beyond two layers usually loses to context blindness: each layer only knows what its parent passed down. Anthropic's measurements above say the same thing from the other side. Fan out when the work is exploratory and bulky, stay inline when it's small, and stop at one orchestrator-to-worker layer except when the middle layer genuinely compresses (a researcher fanning out per-source readers).
 
-`for-claude-code/agents/` ships pinned templates: researcher, deep-research, content-writer, bug-investigator, doc-writer, pr-preparer, test-writer, dependency-auditor, adversarial-verifier, and a `_template.md`. The adversarial-verifier pairs with any generator as a generator/verifier split; run the verifier on a different model (or model family, via `codex-run.sh review` or `claude-run.sh review`) than the generator — different models catch different errors.
+`for-claude-code/agents/` ships pinned templates: researcher, deep-research, content-writer, bug-investigator, doc-writer, pr-preparer, test-writer, dependency-auditor, adversarial-verifier, and a `_template.md`. The adversarial-verifier pairs with any generator as a generator/verifier split; run the verifier on a different model (or model family, via `codex-run.sh review` or `claude-run.sh review`) than the generator, because different models catch different errors.
 
 ## For Claude Teams/Enterprise admins (Cowork)
 
@@ -172,7 +222,7 @@ for-claude-code/                 install this half into ~/.claude
   agents/                          model+effort-pinned Claude agent templates
 for-codex/                       install this half into ~/.codex
   skills/delegate-to-claude/       SKILL.md + claude-run.sh + claude-guard.sh
-  agents/                          Codex fan-out roles: luna-leaf (fast tier), sol-reviewer, terra-ingest (frontier tier; names are historical, the `# codex-tier:` tag decides)
+  agents/                          Codex fan-out roles: luna-leaf (fast tier), terra-ingest (standard tier), sol-reviewer (frontier tier); names are historical, the `# codex-tier:` tag decides
 docs/org-instructions-cowork.md  org instruction for Teams/Enterprise admins
 docs/claude-md-snippet.md        routing rules for your CLAUDE.md (always-in-context layer)
 ```
@@ -200,7 +250,7 @@ The five rules everything here follows from:
 
 ## Caveats
 
-Codex model slugs are resolved from the live catalog, but the fallback constants in `codex-models.sh`, the Claude ID `claude-haiku-4-5-20251001`, and behaviors like #31814 and the silent `haiku` alias fallback are point-in-time; re-verify after either CLI updates. The `codex features list` and `codex mcp list` commands are your friends — and don't trust an LLM's self-report of its own tool schema, ours confidently got it wrong in both directions. Verify with `--json` events or A/B tests.
+Codex model slugs are resolved from the live catalog, but the fallback constants in `codex-models.sh`, the pinned Claude IDs in `claude-run.sh`, the prices and benchmark figures above (read 2026-09-30), and behaviors like #31814 are point-in-time; re-verify after either CLI updates. The `codex features list` and `codex mcp list` commands are your friends, and don't trust an LLM's self-report of its own tool schema, ours confidently got it wrong in both directions. Verify with `--json` events or A/B tests.
 
 ## License
 

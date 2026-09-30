@@ -55,13 +55,15 @@ done
 PROMPT="$1"
 [ -n "$PROMPT" ] || die "empty prompt"
 
-# Full IDs, not aliases. `--model haiku` silently resolves to Sonnet 5 (the
-# help text only documents fable/opus/sonnet aliases), so a haiku-tier call
-# would quietly bill at Sonnet. Verified 2026-07-27 by reading modelUsage in
-# the --output-format json envelope.
+# Full IDs, not aliases, so a CLI alias change can never move a tier silently.
+# History: on 2.1.220 (2026-07-27) `--model haiku` fell through to Sonnet 5 and
+# billed at Sonnet; on 2.1.286 (2026-09-30) all four aliases resolve correctly
+# (haiku -> claude-haiku-4-5-20251001, sonnet -> claude-sonnet-5-5, opus ->
+# claude-opus-5-5, fable -> claude-fable-5-1). Verified via modelUsage in the
+# --output-format json envelope. Bump these when Anthropic ships a new model.
 HAIKU="claude-haiku-4-5-20251001"
-SONNET="claude-sonnet-5"
-OPUS="claude-opus-5"
+SONNET="claude-sonnet-5-5"
+OPUS="claude-opus-5-5"
 
 MODE="read-only"
 case "$CLASS" in
