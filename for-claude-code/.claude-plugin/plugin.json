@@ -1,7 +1,7 @@
 {
   "name": "delegate-to-codex",
-  "description": "Delegate work from Claude Code to the Codex CLI (GPT-6 Astra, Sol, Luna, resolved from the live catalog). Seven pinned task classes, a wrapper that owns every flag, model-pinned agent templates, and an optional guard against raw CLI invocations.",
-  "version": "2.0.0",
+  "description": "Delegate work from Claude Code to the Codex CLI (GPT-6 Astra, Sol, Luna, resolved from the live catalog). Seven pinned task classes, a wrapper that owns every flag, model-pinned agent templates, and an optional guard against raw CLI invocations. Also: a second Claude login side by side with shared configuration.",
+  "version": "2.1.0",
   "author": { "name": "Alec Foster", "email": "alec@mmaglobal.com" },
   "repository": "https://github.com/alectivism/cross-model-agent-delegation",
   "license": "MIT"

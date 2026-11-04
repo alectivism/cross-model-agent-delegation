@@ -6,6 +6,7 @@ This is the setup I run daily as Chief Agent Officer at the Marketing + Media Al
 
 - **Claude Code → Codex:** An Opus 5.5 or Fable 5.1 orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet 5.5/Haiku 4.5 subagents or to Codex workers on GPT-6.1 Sol (everyday work), GPT-6 Astra (review and the hardest calls), or GPT-6 Luna (mechanical work). Codex models are resolved from the live catalog at call time, not pinned.
 - **Codex → Claude Code:** A Codex session sends the same shapes of work the other way, to Haiku 4.5, Sonnet 5.5, and Opus 5.5 workers.
+- **Claude Code → your other Claude login:** a second login (say, work and personal) runs side by side with the same configuration. A conversation can move between the two, and a task can run on the other login. See [Two Claude logins](#two-claude-logins-one-configuration).
 
 Two reasons to run it either way:
 
@@ -96,6 +97,7 @@ Install the half that matches the CLI you drive. Most people want one; installin
 ```bash
 cp -r for-claude-code/skills/delegate-to-codex ~/.claude/skills/
 mkdir -p ~/.claude/agents && cp for-claude-code/agents/*.md ~/.claude/agents/   # optional, model-pinned templates
+cp -r for-claude-code/skills/claude-accounts ~/.claude/skills/                     # optional, second Claude login
 ```
 
 **In Codex** (delegates out to Claude Code):
@@ -210,9 +212,25 @@ The orchestrator re-reads its whole conversation every turn, including after eac
 
 `for-claude-code/agents/` ships pinned templates: researcher, deep-research, content-writer, bug-investigator, doc-writer, pr-preparer, test-writer, dependency-auditor, adversarial-verifier, and a `_template.md`. The adversarial-verifier pairs with any generator as a generator/verifier split; run the verifier on a different model (or model family, via `codex-run.sh review` or `claude-run.sh review`) than the generator, because different models catch different errors.
 
+## Two Claude logins, one configuration
+
+Claude Code ties its login to the config dir (on macOS a Keychain item named after the dir; the docs say other platforms keep `.credentials.json` inside it), so `/login` inside a session swaps the account for every session on that dir. The [`claude-accounts`](for-claude-code/skills/claude-accounts/SKILL.md) skill gives the second account its own dir instead, filled with symlinks back to `~/.claude`:
+
+```bash
+~/.claude/skills/claude-accounts/scripts/setup.sh personal   # creates ~/.claude-personal and a claude-personal launcher
+claude-personal auth login                                    # once, in the browser
+```
+
+- `claude` and `claude-personal` stay signed in at the same time, with the same settings, CLAUDE.md, skills, agents, hooks, plugins, and local MCP servers. claude.ai connectors come from each account's own claude.ai settings.
+- Sessions are shared, so `/exit` and `claude-personal --resume <id>` continues the same conversation on the other account (tested: a session started on one login and resumed on the other recalled its context).
+- `alt-run.sh` runs a single headless task on the other login and returns the result file, the same contract as `codex-run.sh`. Agent-tool subagents always run on the caller's login, so this is the way to put a task on the other one.
+- `accounts.py segment` adds both logins' 5h and weekly usage to a statusline: `main 5h 48% (4h25m) 7d 16% | personal 5h 0% 7d 0%`. It reads the same numbers `/usage` shows and parses every bucket as optional. Offline tests cover Pro, Max, Team, and usage-based response shapes; live runs covered one Team login and one Max login.
+
+Requires `python3`. Tested on macOS with Claude Code 2.1.318 on a Team seat plus a personal Max login.
+
 ## Related
 
-The [Claude Code Playbook](https://www.alecfoster.com/tools/claude-code-playbook) ([repo](https://github.com/alectivism/claude-code-playbook)) is the wider setup this kit came out of: MCP strategy, subagent pinning, hooks, security, and 34 dated lessons.
+The [Claude Code Playbook](https://www.alecfoster.com/tools/claude-code-playbook) ([repo](https://github.com/alectivism/claude-code-playbook)) is the wider setup this kit came out of: MCP strategy, subagent pinning, hooks, security, and 37 dated lessons.
 
 ## For Claude Teams/Enterprise admins (Cowork)
 
@@ -223,6 +241,7 @@ See [`docs/org-instructions-cowork.md`](docs/org-instructions-cowork.md) for a p
 ```
 for-claude-code/                 install this half into ~/.claude
   skills/delegate-to-codex/        SKILL.md + codex-run.sh + codex-guard.sh
+  skills/claude-accounts/          second Claude login: setup.sh, claude-alt launcher, alt-run.sh, accounts.py, tests
   agents/                          model+effort-pinned Claude agent templates
 for-codex/                       install this half into ~/.codex
   skills/delegate-to-claude/       SKILL.md + claude-run.sh + claude-guard.sh
