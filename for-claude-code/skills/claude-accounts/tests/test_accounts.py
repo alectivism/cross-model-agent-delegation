@@ -71,11 +71,23 @@ class Score(unittest.TestCase):
         # 50% used with 3h left: H = 0.5 / 0.6 = 0.83 < 1, so switch side work
         self.assertTrue(self.st(50, 3 * 3600)["use_alt"])
 
-    def test_pace_needs_40_percent(self):
-        self.assertFalse(self.st(30, int(4.5 * 3600))["use_alt"])
+    def test_pace_needs_20_percent(self):
+        self.assertFalse(self.st(15, int(4.5 * 3600))["use_alt"])
+
+    def test_pace_at_25_percent_early(self):
+        # 25% used with 4.5h left: H = 0.75 / 0.9 = 0.83 < 1
+        self.assertTrue(self.st(25, int(4.5 * 3600))["use_alt"])
+
+    def test_half_used_always_switches_side_work(self):
+        st = self.st(55, 3600)
+        self.assertTrue(st["use_alt"])
+        self.assertFalse(st["switch"])
+
+    def test_75_percent_suggests_moving_conversation(self):
+        self.assertTrue(self.st(80, 2 * 3600)["switch"])
 
     def test_on_pace_no_switch(self):
-        self.assertFalse(self.st(50, 2 * 3600)["use_alt"])
+        self.assertFalse(self.st(40, 2 * 3600)["use_alt"])
 
     def test_near_reset_no_switch(self):
         self.assertFalse(self.st(82, 600)["use_alt"])

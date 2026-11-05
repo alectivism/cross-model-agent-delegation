@@ -61,7 +61,10 @@ WIN = {"5h": 5 * 3600, "7d": 7 * 86400}
 CAP, FLOOR = 3.0, 0.02
 CLOSED_PCT, TIGHT_PCT, TIGHT_H = 10, 25, 0.7
 HYSTERESIS = 1.25
-PACE_MIN_USED, NEAR_RESET_S = 40, 900
+# Main 5h thresholds: hand side work to the second login from 20% used when on
+# pace to run out (H < 1), from 50% at any pace; at 75% suggest moving the
+# conversation itself, which side-work delegation never does.
+PACE_MIN_USED, ALWAYS_USED, SWITCH_USED, NEAR_RESET_S = 20, 50, 75, 900
 
 
 # ---------------------------------------------------------------- credentials
@@ -284,12 +287,13 @@ def compute(cache=None, now=None):
                            and b["left_s"] <= NEAR_RESET_S and b["remaining"] >= CLOSED_PCT)]
     H_r, st_r = score(route)
     m5 = next((b for b in route if b["name"] == "5h"), None)
-    pace = bool(m5 and m5["used"] >= PACE_MIN_USED and m5["H"] < 1.0)
+    pace = bool(m5 and ((m5["used"] >= PACE_MIN_USED and m5["H"] < 1.0) or m5["used"] >= ALWAYS_USED))
     if st_r in ("TIGHT", "CLOSED"):
         use_alt = alt["state"] == "OPEN" or (alt["state"] == "TIGHT" and (alt["H"] or 0) >= (H_r or 0) * HYSTERESIS)
     else:
         use_alt = pace and alt["state"] == "OPEN"
-    return {"ts": now, "main": main, "alt": alt, "use_alt": use_alt,
+    switch = bool(use_alt and (st_r == "CLOSED" or (m5 and m5["used"] >= SWITCH_USED)))
+    return {"ts": now, "main": main, "alt": alt, "use_alt": use_alt, "switch": switch,
             "labels": {"main": MAIN_LABEL, "alt": ALT_LABEL}}
 
 
@@ -369,6 +373,8 @@ def line():
     out = "ACCOUNTS " + " | ".join(segs)
     if st["use_alt"]:
         out += f" | use={st['labels']['alt']}"
+    if st.get("switch"):
+        out += f" | switch={st['labels']['alt']}"
     return out
 
 
