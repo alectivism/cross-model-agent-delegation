@@ -44,18 +44,17 @@ The child has the same skills and tools but none of this conversation, so write 
 
 ## Usage for both logins
 
-`scripts/accounts.py` reads 5h and weekly usage for both logins from the OAuth usage endpoint that `/usage` uses (undocumented; every field is parsed defensively, so a plan that omits a bucket just shows fewer numbers). Weekly is the most-used weekly bucket, including per-model weekly caps where a plan has them.
+`scripts/accounts.py` gets its numbers only from the `rate_limits` object Claude Code passes to the statusline (5h and weekly, each with a used percentage and reset time). It reads no credentials and makes no network calls. Each statusline render records its own login's numbers in a small cache; the other login's numbers are whatever its own statusline last recorded. Add `accounts.py segment` to your statusline once: both logins share `settings.json`, so both record. Every field is parsed defensively, so a plan that omits a bucket just shows fewer numbers.
 
-- **Hook line:** add `python3 ${CLAUDE_SKILL_DIR}/scripts/accounts.py line` as a `UserPromptSubmit` hook. It prints `ACCOUNTS main 5h 48%/4h25m 7d 16% H=0.59 TIGHT | personal 5h 0% ... OPEN` and refreshes in the background at most every 3 minutes. `H` is a pace ratio: remaining quota over remaining fraction of the window; under 1 runs out before the reset.
-- **Statusline:** `accounts.py segment` prints `main 5h 48% (4h25m) 7d 16% | personal 5h 0% 7d 0%`. Pipe the statusline's stdin JSON into it so the session's own `rate_limits` are the fallback. A dot appears only at 70%+ (🟡) or 90%+ (🔴); weekly reset times appear at 70%+.
+- **Hook line:** add `python3 ${CLAUDE_SKILL_DIR}/scripts/accounts.py line` as a `UserPromptSubmit` hook. It prints `ACCOUNTS main 5h 48%/4h25m 7d 16% H=0.59 TIGHT | personal 5h 0% ... OPEN` from the cache the statusline keeps. `H` is a pace ratio: remaining quota over remaining fraction of the window; under 1 runs out before the reset.
+- **Statusline:** `accounts.py segment` prints `main 5h 48% (4h25m) 7d 16% | personal 5h 0% 7d 0%`. Pipe the statusline's stdin JSON into it: that is how it records this login's numbers. A dot appears only at 70%+ (🟡) or 90%+ (🔴); weekly reset times appear at 70%+.
 - Labels: `CLAUDE_MAIN_LABEL` (default `main`), `CLAUDE_ALT_LABEL` (default the name).
 - `use=<name>` on the line means the main login is short on headroom (under 25% left, or its 5h window 20%+ used and on pace to run out before the reset, or 50%+ used at any pace; never within 15 minutes of a reset) and the second login has room. `switch=<name>` (75%+ of the main 5h window, or out) means the conversation itself should move: `/compact`, `/exit`, then `claude-<name> --resume <id>` (resume replays the whole transcript on the other login, and the prompt cache doesn't carry across).
-- `idle` means that login's access token has expired from disuse, so the probe can't read it. The line keeps the last reading (a 5h bucket whose reset time has passed shows as reset) and shows `UNKNOWN` if there is none yet. `SIGNED_OUT` means run `claude-<name> auth login`.
-- The probe never refreshes tokens. A refresh rotates the stored refresh token and would sign Claude Code out.
+- `idle` means that login's statusline hasn't rendered for 15 minutes (`CLAUDE_ACCOUNTS_STALE`). The line keeps the last reading (a bucket whose reset time has passed shows as reset) and shows `UNKNOWN` if there is none yet. A login that has never rendered also reads `UNKNOWN` and is never chosen.
 
 ## Troubleshooting
 
 - A hook or script that edits `.claude.json` must honor `CLAUDE_CONFIG_DIR` (`$CLAUDE_CONFIG_DIR/.claude.json` when set, `~/.claude.json` otherwise), or the second login never sees its changes.
 - New top-level items in `~/.claude` that should be shared: re-run `setup.sh <name>`, or set `CLAUDE_ACCOUNTS_SHARE_EXTRA`.
 - Undo: `claude-<name> auth logout`, then `rm -rf ~/.claude-<name> ~/.local/bin/claude-<name>`.
-- Tests (offline, no Keychain or network): `python3 -m unittest discover -s tests`.
+- Tests (offline, no credentials or network): `python3 -m unittest discover -s tests`.

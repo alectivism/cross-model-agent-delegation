@@ -1,6 +1,6 @@
 ---
 name: doc-writer
-description: Generates or updates documentation from code: READMEs, API docs, docstrings, setup guides. Use after code changes leave docs stale, or when a project lacks docs.
+description: "Generates or updates documentation from code: READMEs, API docs, docstrings, setup guides. Use after code changes leave docs stale, or when a project lacks docs."
 model: sonnet
 effort: medium
 tools: Read, Grep, Glob, Write, Edit, Bash

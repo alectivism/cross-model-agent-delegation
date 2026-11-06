@@ -38,8 +38,11 @@ SHARE=(
 [ -d "$SRC" ] || { echo "setup: $SRC not found; run claude once first" >&2; exit 2; }
 # Never overwrite a command that isn't ours (an existing claude-<name> install).
 LAUNCHER="$HOME/.local/bin/claude-$NAME"
-if { [ -e "$LAUNCHER" ] || [ -L "$LAUNCHER" ]; } \
-   && [ "$(readlink -f "$LAUNCHER" 2>/dev/null)" != "$(readlink -f "$HERE/claude-alt")" ]; then
+TARGET="$(readlink -f "$HERE/claude-alt.sh")"
+CUR="$(readlink -f "$LAUNCHER" 2>/dev/null || true)"
+# A link to the pre-3.0.1 launcher name (claude-alt, no extension) is ours too.
+if { [ -e "$LAUNCHER" ] || [ -L "$LAUNCHER" ]; } && [ "$CUR" != "$TARGET" ] \
+   && ! { [ -L "$LAUNCHER" ] && [ "$(basename "$CUR")" = "claude-alt" ]; }; then
   echo "setup: $LAUNCHER already exists and is not this launcher; nothing changed. Pick another name or move it aside." >&2
   exit 2
 fi
@@ -59,7 +62,7 @@ echo "setup: $linked new links in $DST"
 python3 "$HERE/sync_config.py" "$DST"
 
 mkdir -p "$HOME/.local/bin"
-[ -L "$LAUNCHER" ] || ln -s "$HERE/claude-alt" "$LAUNCHER"
+[ "$CUR" = "$TARGET" ] || ln -sfn "$HERE/claude-alt.sh" "$LAUNCHER"
 echo "setup: launcher $HOME/.local/bin/claude-$NAME"
 case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) echo "setup: add ~/.local/bin to PATH" >&2 ;; esac
 echo "next:  claude-$NAME auth login     (pick the other account in the browser)"

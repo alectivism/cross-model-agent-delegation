@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Usage for two Claude Code logins (main + alt): probe, status line, statusline segment.
+"""Usage for two Claude Code logins (main + alt): statusline segment and status line.
 
 Subcommands
-  refresh            read both logins' usage now and write the cache
-  line               one-line status for a UserPromptSubmit hook (refreshes in the
-                     background when the cache is older than CLAUDE_ACCOUNTS_TTL)
-  segment            compact text for a statusline; pipe the statusline's stdin
-                     JSON in so the session's own rate_limits act as a fallback
+  segment            record this session's usage from the statusline's stdin JSON,
+                     then print compact text for the statusline. Wire it into the
+                     statusline of both logins; it is the only data source.
+  line               one-line status for a UserPromptSubmit hook, from the cache
   json               full computed state
 
 Accounts
@@ -16,35 +15,25 @@ Accounts
   dir name without ".claude-", e.g. "personal").
 
 Where the numbers come from
-  The OAuth usage endpoint behind /usage (GET /api/oauth/usage). It is not a
-  documented API: fields can change, and every parse below tolerates a missing
-  or null bucket so the statusline degrades to fewer segments instead of
-  breaking. Live-tested on one Team and one Max login (macOS, Claude Code
-  2.1.318); other plans are covered by offline response-shape tests only.
-  API-key (Console) logins have no OAuth token and show as signed out.
+  Only the `rate_limits` object Claude Code passes to the statusline on stdin
+  (five_hour and seven_day, each with used_percentage and resets_at). Each
+  render records its own login's numbers in the cache; the other login's
+  numbers are whatever its own statusline last recorded. This script reads no
+  credentials and makes no network calls.
 
-Credentials
-  macOS: the login Keychain item Claude Code writes, named
-  "Claude Code-credentials" for the default dir and
-  "Claude Code-credentials-<sha256(config dir)[:8]>" for any other
-  CLAUDE_CONFIG_DIR (observed in Claude Code 2.1.318).
-  Linux/Windows: <config dir>/.credentials.json.
-  The token is sent only to api.anthropic.com and never printed or stored. It
-  is NEVER refreshed here: a refresh rotates the stored refresh token and signs
-  Claude Code out. An expired access token is reported "idle": the last
-  observed numbers are kept, a window whose reset time has passed counts as
-  reset, and with no observation the login is UNKNOWN (never chosen).
+Staleness
+  A login with no render for CLAUDE_ACCOUNTS_STALE seconds (default 900) is
+  "idle": its last observation is kept, a window whose reset time has passed
+  counts as reset, and with no observation at all the login is UNKNOWN (never
+  chosen).
 """
 import datetime as _dt
-import hashlib
 import json
 import os
-import subprocess
 import sys
 import tempfile
 import time
 import unicodedata
-import urllib.request
 
 HOME = os.path.expanduser("~")
 DEFAULT_DIR = os.path.join(HOME, ".claude")
@@ -54,8 +43,7 @@ MAIN_LABEL = os.environ.get("CLAUDE_MAIN_LABEL", "main")
 ALT_LABEL = os.environ.get("CLAUDE_ALT_LABEL") or (
     os.path.basename(ALT_DIR.rstrip("/")).replace(".claude-", "", 1).lstrip(".") or "alt")
 CACHE = os.environ.get("CLAUDE_ACCOUNTS_CACHE", os.path.join(DEFAULT_DIR, "claude-accounts-usage.json"))
-TTL = int(os.environ.get("CLAUDE_ACCOUNTS_TTL", "180"))
-URL = "https://api.anthropic.com/api/oauth/usage"
+STALE = int(os.environ.get("CLAUDE_ACCOUNTS_STALE", "900"))
 
 WIN = {"5h": 5 * 3600, "7d": 7 * 86400}
 CAP, FLOOR = 3.0, 0.02
@@ -67,7 +55,7 @@ HYSTERESIS = 1.25
 PACE_MIN_USED, ALWAYS_USED, SWITCH_USED, NEAR_RESET_S = 20, 50, 75, 900
 
 
-# ---------------------------------------------------------------- credentials
+# ---------------------------------------------------------------- paths
 
 def _norm(d):
     return unicodedata.normalize("NFC", os.path.abspath(os.path.expanduser(d)))
@@ -75,32 +63,6 @@ def _norm(d):
 
 def _is_default(d):
     return _norm(d) == _norm(DEFAULT_DIR)
-
-
-def keychain_service(config_dir):
-    if _is_default(config_dir):
-        return "Claude Code-credentials"
-    return "Claude Code-credentials-" + hashlib.sha256(_norm(config_dir).encode()).hexdigest()[:8]
-
-
-def read_creds(config_dir):
-    """Return the claudeAiOauth dict, or None. Never logs the token."""
-    raw = None
-    if sys.platform == "darwin":
-        r = subprocess.run(["security", "find-generic-password", "-s", keychain_service(config_dir),
-                            "-a", os.environ.get("USER", ""), "-w"], capture_output=True, text=True)
-        if r.returncode == 0:
-            raw = r.stdout
-    if raw is None:
-        try:
-            with open(os.path.join(config_dir, ".credentials.json")) as f:
-                raw = f.read()
-        except OSError:
-            return None
-    try:
-        return json.loads(raw).get("claudeAiOauth")
-    except Exception:
-        return None
 
 
 # ---------------------------------------------------------------- parsing
@@ -116,22 +78,17 @@ def _epoch(v):
         return None
 
 
-def parse_usage(data):
-    """Endpoint JSON -> {"5h": {...}, "7d": {...}} with whatever is present.
-
-    Weekly buckets (seven_day and any per-model seven_day_*) are all kept under
-    "7d_all"; scoring picks the most-used one that hasn't reset yet, since on
-    plans with per-model weekly caps that is the one that binds."""
+def parse_rate_limits(rl):
+    """Statusline stdin rate_limits -> {"5h": {...}, "7d_all": [...]} with whatever is present."""
     out = {}
-    fh = data.get("five_hour") if isinstance(data, dict) else None
-    if isinstance(fh, dict) and fh.get("utilization") is not None:
-        out["5h"] = {"used": float(fh["utilization"]), "resets_at": _epoch(fh.get("resets_at"))}
-    weekly = []
-    for k, v in (data.items() if isinstance(data, dict) else []):
-        if k.startswith("seven_day") and isinstance(v, dict) and v.get("utilization") is not None:
-            weekly.append({"used": float(v["utilization"]), "resets_at": _epoch(v.get("resets_at")), "bucket": k})
-    if weekly:
-        out["7d_all"] = weekly
+    rl = rl if isinstance(rl, dict) else {}
+    fh = rl.get("five_hour")
+    if isinstance(fh, dict) and fh.get("used_percentage") is not None:
+        out["5h"] = {"used": float(fh["used_percentage"]), "resets_at": _epoch(fh.get("resets_at"))}
+    sd = rl.get("seven_day")
+    if isinstance(sd, dict) and sd.get("used_percentage") is not None:
+        out["7d_all"] = [{"used": float(sd["used_percentage"]), "resets_at": _epoch(sd.get("resets_at")),
+                          "bucket": "seven_day"}]
     return out
 
 
@@ -148,25 +105,6 @@ def weekly_binding(raw, now):
     return best
 
 
-def probe(config_dir, now):
-    creds = read_creds(config_dir)
-    if not creds or not creds.get("accessToken"):
-        return {"status": "signed_out", "observed_at": now}
-    base = {"observed_at": now, "plan": creds.get("subscriptionType")}
-    if (creds.get("expiresAt") or 0) / 1000 <= now + 30:
-        return {**base, "status": "idle"}
-    req = urllib.request.Request(URL, headers={
-        "Authorization": "Bearer " + creds["accessToken"],
-        "anthropic-beta": "oauth-2025-04-20",
-        "User-Agent": "claude-accounts-usage",
-    })
-    try:
-        data = json.loads(urllib.request.urlopen(req, timeout=10).read())
-    except Exception as e:
-        return {**base, "status": "error", "error": f"{type(e).__name__}"}
-    return {**base, "status": "ok", "buckets": parse_usage(data), "last_ok_at": now}
-
-
 # ---------------------------------------------------------------- cache
 
 def load_cache():
@@ -177,50 +115,28 @@ def load_cache():
         return {}
 
 
-def refresh():
-    now = int(time.time())
-    cache = load_cache()
-    for key, d in (("main", MAIN_DIR), ("alt", ALT_DIR)):
-        if key == "alt" and not os.path.isdir(ALT_DIR):
-            cache[key] = {"status": "unconfigured", "observed_at": now}
-            continue
-        res = probe(d, now)
-        res["dir"] = _norm(d)
-        prev = cache.get(key) or {}
-        if prev.get("dir") != res["dir"]:   # a different account was configured
-            prev = {}
-        if res["status"] != "ok":   # keep the last good numbers
-            for k in ("buckets", "last_ok_at"):
-                if k in prev:
-                    res[k] = prev[k]
-        cache[key] = res
-    os.makedirs(os.path.dirname(CACHE), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(CACHE), prefix=".claude-accounts.")
-    with os.fdopen(fd, "w") as f:
-        json.dump(cache, f, indent=2)
-    os.replace(tmp, CACHE)
-    return cache
-
-
-def refresh_in_background():
-    try:
-        age = time.time() - os.path.getmtime(CACHE)
-    except OSError:
-        age = 1e9
-    if age <= TTL:
+def record(key, rate_limits, now=None):
+    """Store this login's numbers from its own statusline. Never touches the other key."""
+    buckets = parse_rate_limits(rate_limits)
+    if not buckets:
         return
+    now = now or int(time.time())
+    d = MAIN_DIR if key == "main" else ALT_DIR
     lock = os.path.join(tempfile.gettempdir(), ".claude-accounts.lock")
     try:
         os.mkdir(lock)
     except FileExistsError:
-        try:
-            if time.time() - os.path.getmtime(lock) > 60:
-                os.rmdir(lock)
-        except OSError:
-            pass
-        return
-    subprocess.Popen([sys.executable, os.path.abspath(__file__), "_refresh_locked", lock],
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        return  # another render is writing; the next render records
+    try:
+        cache = load_cache()
+        cache[key] = {"status": "ok", "observed_at": now, "dir": _norm(d), "buckets": buckets}
+        os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(CACHE), prefix=".claude-accounts.")
+        with os.fdopen(fd, "w") as f:
+            json.dump(cache, f, indent=2)
+        os.replace(tmp, CACHE)
+    finally:
+        os.rmdir(lock)
 
 
 # ---------------------------------------------------------------- scoring
@@ -257,8 +173,10 @@ def score(bs):
 def account_state(entry, now):
     entry = entry or {}
     status = entry.get("status", "unconfigured")
+    if status == "ok" and entry.get("observed_at") and now - entry["observed_at"] > STALE:
+        status = "idle"
     raw = entry.get("buckets") or {}
-    # Idle (token expired) keeps the last observation: a window whose reset has
+    # Idle (no render for STALE seconds) keeps the last observation: a window whose reset has
     # passed counts as reset; with no observation at all the state is UNKNOWN.
     bs = {"5h": bucket("5h", raw.get("5h"), now), "7d": bucket("7d", weekly_binding(raw, now), now)}
     if status == "idle":
@@ -278,8 +196,9 @@ def compute(cache=None, now=None):
         e = cache.get(key)
         if isinstance(e, dict) and e.get("dir") and e["dir"] != _norm(d):
             cache = {**cache, key: None}
-    main = account_state(cache.get("main"), now)
-    alt = account_state(cache.get("alt"), now)
+    main = account_state(cache.get("main") or {"status": "unknown"}, now)
+    alt_entry = cache.get("alt") or {"status": "unknown" if os.path.isdir(ALT_DIR) else "unconfigured"}
+    alt = account_state(alt_entry, now)
     # Leave out a main 5h window that resets within NEAR_RESET_S with 10%+ left:
     # finishing on main is cheaper than a hand-off for a few minutes.
     route = [b for b in main["buckets"].values()
@@ -328,18 +247,11 @@ def fmt(b, always_reset):
 
 
 def segment(this_is_alt, stdin_json=None):
-    st = compute()
     me, other = ("alt", "main") if this_is_alt else ("main", "alt")
+    if isinstance(stdin_json, dict):
+        record(me, stdin_json.get("rate_limits"))
+    st = compute()
     a = st[me]
-    # Fallback for the session's own account: statusline stdin rate_limits.
-    if not any(a["buckets"].values()) and stdin_json:
-        rl = (stdin_json or {}).get("rate_limits") or {}
-        now = st["ts"]
-        a = {"buckets": {
-            "5h": bucket("5h", {"used": (rl.get("five_hour") or {}).get("used_percentage"),
-                                "resets_at": (rl.get("five_hour") or {}).get("resets_at")}, now),
-            "7d": bucket("7d", {"used": (rl.get("seven_day") or {}).get("used_percentage"),
-                                "resets_at": (rl.get("seven_day") or {}).get("resets_at")}, now)}}
     parts = []
     mine = " ".join(x for x in (fmt(a["buckets"].get("5h"), True), fmt(a["buckets"].get("7d"), False)) if x)
     if mine:
@@ -369,7 +281,7 @@ def line():
         if a["status"] == "idle":
             bits.append("idle")
         h = f" H={a['H']:.2f}" if a["H"] is not None else ""
-        segs.append(f"{st['labels'][key]} {' '.join(bits)}{h} {a['state']}")
+        segs.append(" ".join(x for x in (st['labels'][key], " ".join(bits), h.strip(), a['state']) if x))
     out = "ACCOUNTS " + " | ".join(segs)
     if st["use_alt"]:
         out += f" | use={st['labels']['alt']}"
@@ -380,23 +292,9 @@ def line():
 
 def main(argv):
     cmd = argv[1] if len(argv) > 1 else "line"
-    if cmd == "_refresh_locked":
-        try:
-            refresh()
-        finally:
-            try:
-                os.rmdir(argv[2])
-            except OSError:
-                pass
-        return 0
-    if cmd == "refresh":
-        refresh()
-        print(line())
-    elif cmd == "line":
-        refresh_in_background()
+    if cmd == "line":
         print(line())
     elif cmd == "segment":
-        refresh_in_background()
         stdin_json = None
         if not sys.stdin.isatty():
             try:

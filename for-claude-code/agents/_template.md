@@ -1,6 +1,6 @@
 ---
 name: agent-name
-description: One-line description: what it does AND when Claude should delegate to it (Claude routes on this).
+description: "One-line description: what it does AND when Claude should delegate to it (Claude routes on this)."
 model: sonnet
 effort: medium
 tools: Read, Grep, Glob

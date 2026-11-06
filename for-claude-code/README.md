@@ -14,7 +14,7 @@ Full documentation, model prices and the evidence behind the routing: [github.co
 ## What's inside
 
 - **`skills/cross-model-delegation`**: `codex-run.sh` (Codex wrapper), `codex-models.sh` (resolves Codex model tiers from the CLI's own catalog), `codex-guard.sh` (optional hook that blocks raw `codex exec`), `agy-run.sh` (Gemini wrapper), and the skill instructions.
-- **`skills/claude-accounts`**: `setup.sh`, the `claude-alt` launcher, `alt-run.sh`, `accounts.py` (usage for a statusline) and `sync_config.py`.
+- **`skills/claude-accounts`**: `setup.sh`, the `claude-alt.sh` launcher, `alt-run.sh`, `accounts.py` (usage for a statusline) and `sync_config.py`.
 - **`agents/`**: nine Claude subagent templates with `model:` and `effort:` pinned, plus a blank `_template.md`.
 
 ## Requirements
@@ -30,12 +30,12 @@ Nothing runs on install: the plugin has no hooks or MCP servers. Scripts run onl
 - **`agy-run.sh`** runs your installed `agy` CLI with your prompt, which goes to Google under your own Google login. It unsets the Gemini and Google API-key variables for that call, starts agy in a new empty temp folder, and writes the answer to a temp file.
 - **`codex-guard.sh`** reads the hook's JSON input and prints a deny decision for raw `codex exec` commands. It sends nothing. It is active only if you add it to your `settings.json` yourself, pointing at its path inside the plugin's install folder.
 - **`setup.sh <name>`** creates `~/.claude-<name>/` with symlinks back into `~/.claude`, and links a `claude-<name>` launcher into `~/.local/bin`.
-- **`claude-alt`** runs `sync_config.py`, then starts the `claude` CLI with `CLAUDE_CONFIG_DIR` set to the second config folder.
+- **`claude-alt.sh`** runs `sync_config.py`, then starts the `claude` CLI with `CLAUDE_CONFIG_DIR` set to the second config folder.
 - **`sync_config.py`** copies MCP server and per-project settings from `~/.claude.json` into the second login's `.claude.json`. Login and account fields are never copied.
 - **`alt-run.sh`** runs one headless `claude -p` task under the second login and writes the result to a temp file.
-- **`accounts.py`** reads each login's Claude Code OAuth access token (macOS Keychain, or `.credentials.json` elsewhere) and sends it only to Anthropic's usage endpoint, `https://api.anthropic.com/api/oauth/usage`: the same numbers `/usage` shows. It never refreshes a token and caches the readings in `~/.claude/claude-accounts-usage.json`.
+- **`accounts.py`** reads the `rate_limits` object Claude Code passes to the statusline on stdin and caches each login's 5h and weekly usage in `~/.claude/claude-accounts-usage.json`. It reads no credentials and makes no network calls.
 
-No script sends data anywhere else, and none collects telemetry.
+Only the wrappers that run a model (`codex-run.sh`, `agy-run.sh`, `alt-run.sh`) send anything off your machine, each through the CLI you installed and signed in to. No script reads credentials or collects telemetry.
 
 ## License
 

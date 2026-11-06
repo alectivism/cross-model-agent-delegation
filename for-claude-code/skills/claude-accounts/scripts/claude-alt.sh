@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude-alt — run Claude Code on your second login with the shared config.
+# claude-alt.sh — run Claude Code on your second login with the shared config.
 # Installed by setup.sh as ~/.local/bin/claude-<name>; the name it is invoked
 # under picks the config dir (claude-personal -> ~/.claude-personal).
 #

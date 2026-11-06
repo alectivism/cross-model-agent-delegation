@@ -242,7 +242,7 @@ claude-personal auth login                                    # once, in the bro
 - `claude` and `claude-personal` stay signed in at the same time, with the same settings, CLAUDE.md, skills, agents, hooks, plugins, and local MCP servers. claude.ai connectors come from each account's own claude.ai settings.
 - Sessions are shared, so `/exit` and `claude-personal --resume <id>` continues the same conversation on the other account (tested: a session started on one login and resumed on the other recalled its context).
 - `alt-run.sh` runs a single headless task on the other login and returns the result file, the same contract as `codex-run.sh`. Agent-tool subagents always run on the caller's login, so this is the way to put a task on the other one.
-- `accounts.py segment` adds both logins' 5h and weekly usage to a statusline: `main 5h 48% (4h25m) 7d 16% | personal 5h 0% 7d 0%`. It reads the same numbers `/usage` shows and parses every bucket as optional. Offline tests cover Pro, Max, Team, and usage-based response shapes; live runs covered one Team login and one Max login.
+- `accounts.py segment` adds both logins' 5h and weekly usage to a statusline: `main 5h 48% (4h25m) 7d 16% | personal 5h 0% 7d 0%`. Its only source is the `rate_limits` object Claude Code passes to the statusline: each login's statusline records its own numbers, so it reads no credentials and makes no network calls, and the other login's numbers are as fresh as its last render. Every bucket is parsed as optional; offline tests cover full, partial and null shapes.
 
 Requires `python3`. Tested on macOS with Claude Code 2.1.318 on a Team seat plus a personal Max login.
 
@@ -259,7 +259,7 @@ See [`docs/org-instructions-cowork.md`](docs/org-instructions-cowork.md) for a p
 ```
 for-claude-code/                 install this half into ~/.claude
   skills/cross-model-delegation/   SKILL.md + codex-run.sh + codex-models.sh + codex-guard.sh + agy-run.sh (Gemini)
-  skills/claude-accounts/          second Claude login: setup.sh, claude-alt launcher, alt-run.sh, accounts.py, tests
+  skills/claude-accounts/          second Claude login: setup.sh, claude-alt.sh launcher, alt-run.sh, accounts.py, tests
   agents/                          model+effort-pinned Claude agent templates
 for-codex/                       install this half into ~/.codex
   skills/delegate-to-claude/       SKILL.md + claude-run.sh + claude-guard.sh
