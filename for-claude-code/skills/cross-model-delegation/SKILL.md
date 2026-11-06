@@ -1,9 +1,11 @@
 ---
-name: delegate-to-codex
-description: Use when delegating any task to the Codex CLI (codex exec, GPT-6 / GPT-5.6, "ask Codex", cross-model review, second opinion, offload to GPT) or when choosing a Codex model/effort tier. Covers single calls and Codex-side multi-agent orchestration.
+name: cross-model-delegation
+description: Use when delegating any task to another model family. Codex CLI (codex exec, GPT-6, "ask Codex", offload to GPT) for code, review and reasoning, or Gemini 4 Argon through the Antigravity CLI (agy, "ask Gemini") for writing. Covers cross-model review, second opinions, choosing a Codex model/effort tier, and Codex-side multi-agent orchestration.
 ---
 
-# Codex Delegation
+# Cross-Model Delegation (Codex, Gemini)
+
+Two wrappers with one contract: classify the task, run the script, read the file it names. `scripts/codex-run.sh` sends work to the Codex CLI (most of this file). `scripts/agy-run.sh` sends it to Gemini through the Antigravity CLI (see the Gemini section at the end).
 
 ## Core rule
 
@@ -12,7 +14,7 @@ A PreToolUse hook (`scripts/codex-guard.sh`) blocks raw `codex exec` from the Ba
 Never hand-assemble `codex exec` flags. Classify the task into one class and run the wrapper; it owns model, effort, sandbox, service tier, MCP/plugin suppression, auth hygiene, and output handling:
 
 ```bash
-~/.claude/skills/delegate-to-codex/scripts/codex-run.sh <class> [options] "<full-context prompt>"
+~/.claude/skills/cross-model-delegation/scripts/codex-run.sh <class> [options] "<full-context prompt>"
 # last stdout line: OUT=<file>  → Read that file. NEVER pipe codex stdout through head/tail.
 ```
 
@@ -126,3 +128,10 @@ Codex quota is invisible headless; treat the "workspace is out of credits" error
 | Full context missing from prompt | MCP is off — include the diff/files/claims inline or via `-C` |
 | Raw `codex exec` in a background task hangs | codex waits on piped stdin; the wrapper redirects `</dev/null` |
 | Agent TOML pins drift after a release | `codex-models.sh check`, then `sync-agents` |
+
+## Gemini 4 Argon (third family)
+
+Same pattern, other vendor: `scripts/agy-run.sh <prose|review|fast|image> "<full-context prompt>"` runs the Antigravity CLI (`agy`) on a Google AI Pro or Ultra subscription (Google account login, never an API key) and prints `OUT=<file>`. Argon writes well and is weaker at code, so use it as the third run on writing checks and as an extra opinion on code, with Codex `review` as the code reviewer. Like Codex it sees only the prompt. The same "claims, not evidence" rules apply.
+
+Setup, classes, why Argon has no quota reading, the separate Claude/GPT pool inside agy, and gotchas: [references/gemini-agy.md](references/gemini-agy.md).
+

@@ -25,7 +25,7 @@ when spawning a built-in or ad-hoc subagent for non-deep work, ALWAYS pass
 ## Codex CLI (shelling out)
 
 When shelling out to the Codex CLI non-interactively, always use the wrapper:
-`~/.claude/skills/delegate-to-codex/scripts/codex-run.sh <class> "<prompt>"`
+`~/.claude/skills/cross-model-delegation/scripts/codex-run.sh <class> "<prompt>"`
 (classes: commit, implement, explore, ingest, review, hardest). It pins
 model+effort per class and passes `--ignore-user-config`, which drops all MCP
 servers and plugins (the multi-minute cold-start). Note `-c 'mcp_servers={}'`
@@ -33,4 +33,12 @@ does NOT work — TOML table overrides merge, so an empty table is a no-op.
 Put full context in the prompt (MCP off means Codex can't look things up);
 add `--web` if it needs web search. Read the file printed as `OUT=<path>`;
 never pipe codex stdout through head/tail.
+
+## Gemini (Antigravity CLI)
+
+For writing work (drafts, rewrites, a third-family read on prose), use
+`~/.claude/skills/cross-model-delegation/scripts/agy-run.sh <class> "<prompt>"`
+(classes: prose, review, fast, image). It runs Gemini 4 Argon on your Google
+AI subscription, never an API key. Argon is weaker at code, so Codex `review`
+stays the code reviewer. Like Codex, it sees only the prompt.
 ```

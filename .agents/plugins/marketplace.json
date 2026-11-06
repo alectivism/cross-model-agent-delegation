@@ -9,7 +9,7 @@
       "category": "Developer Tools"
     },
     {
-      "name": "delegate-to-codex",
+      "name": "cross-model-delegation",
       "source": { "source": "local", "path": "./for-claude-code" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "Developer Tools"

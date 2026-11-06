@@ -1,17 +1,18 @@
 # Cross-Model Agent Delegation
 
-Delegation between [Claude Code](https://code.claude.com) and the [OpenAI Codex CLI](https://developers.openai.com/codex/cli), in **both directions**, with a script owning every flag so the model classifies but never improvises.
+Delegation between [Claude Code](https://code.claude.com) and the [OpenAI Codex CLI](https://developers.openai.com/codex/cli) in **both directions**, plus Google's Gemini 4 Argon from Claude Code through the Antigravity CLI, with a script owning every flag so the model classifies but never improvises.
 
 This is the setup I run daily as Chief Agent Officer at the Marketing + Media Alliance, extracted and stripped of anything organization-specific. Every claim below was verified against a named CLI version on a stated date, and the failure modes in the "what this cost to get right" sections are ones that actually bit.
 
 - **Claude Code → Codex:** An Opus 5.5 or Fable 5.1 orchestrator keeps planning and synthesis; research, review, retrieval, and bulk edits go to Sonnet 5.5/Haiku 4.5 subagents or to Codex workers on GPT-6.1 Sol (everyday work), GPT-6 Astra (review and the hardest calls), or GPT-6 Luna (mechanical work). Codex models are resolved from the live catalog at call time, not pinned.
 - **Codex → Claude Code:** A Codex session sends the same shapes of work the other way, to Haiku 4.5, Sonnet 5.5, and Opus 5.5 workers.
+- **Claude Code → Gemini:** writing-heavy work (drafts, rewrites, a third-family read on prose) goes to Gemini 4 Argon through the Antigravity CLI on a Google AI Pro or Ultra subscription. See [Gemini through the Antigravity CLI](#gemini-through-the-antigravity-cli).
 - **Claude Code → your other Claude login:** a second login (say, work and personal) runs side by side with the same configuration. A conversation can move between the two, and a task can run on the other login. See [Two Claude logins](#two-claude-logins-one-configuration).
 
 Two reasons to run it either way:
 
 1. **It cuts expensive-model token burn.** Ad-hoc subagents inherit the session model, so an Opus session burns Opus on grep work unless something pins it. Both wrappers pin it.
-2. **It spreads load across two subscriptions.** Claude quota and ChatGPT quota are separate pools, so leaf work crossing the boundary makes both last longer. You also get the cross-family bonus: a GPT model reviewing Claude's work, or a Claude model reviewing GPT's, catches errors two same-family models agree on.
+2. **It spreads load across subscriptions.** Claude, ChatGPT and Google AI quota are separate pools, so leaf work crossing the boundary makes each last longer. You also get the cross-family bonus: a GPT or Gemini model reviewing Claude's work, or a Claude model reviewing GPT's, catches errors two same-family models agree on.
 
 You don't invoke any of this by hand. You talk to whichever CLI you're in; the skill and rules make it classify and route on its own:
 
@@ -35,8 +36,9 @@ What each wrapper routes to today, with list prices. API prices are USD per mill
 | OpenAI | GPT-6 Astra (`gpt-6-astra`) | `frontier` tier: `review`, `hardest` | $10 / $50 | 250 / 1,250 | 2026-09-03 |
 | OpenAI | GPT-6.1 Sol (`gpt-6.1-sol`) | `standard` tier: `implement`, `explore`, `ingest`, `prose` | $2 / $10 | 50 / 250 | 2026-09-29 |
 | OpenAI | GPT-6 Luna (`gpt-6-luna`) | `fast` tier: `commit` | $0.10 / $0.50 | 2.5 / 12.5 | 2026-09-22 |
+| Google | Gemini 4 Argon (`gemini-4-argon-medium` / `-high` in agy) | `agy-run.sh` `prose`, `review` | not verified | n/a (Google AI subscription) | 2026-10-13 |
 
-Anthropic has said Haiku 5.5 will follow Sonnet 5.5; until it ships, Haiku 4.5 is the cheap Claude tier. GPT-6 Sol (2026-09-22) is still listed but the catalog now labels it "previous generation", and the resolver picks GPT-6.1 Sol. Sources: Anthropic launch pages for [Opus 5.5](https://www.anthropic.com/claude-opus-5-5) and [Sonnet 5.5](https://www.anthropic.com/claude-sonnet-5-5), Anthropic [release notes](https://support.claude.com/en/articles/12138966-release-notes), the [OpenAI API changelog](https://developers.openai.com/api/docs/changelog), and [Codex pricing](https://learn.chatgpt.com/docs/pricing), all read 2026-09-30.
+Anthropic has said Haiku 5.5 will follow Sonnet 5.5; until it ships, Haiku 4.5 is the cheap Claude tier. GPT-6 Sol (2026-09-22) is still listed but the catalog now labels it "previous generation", and the resolver picks GPT-6.1 Sol. The Gemini row was added 2026-11-06; it runs on a Google AI Pro or Ultra subscription through the Antigravity CLI, so this kit never pays its API price. Sources: Anthropic launch pages for [Opus 5.5](https://www.anthropic.com/claude-opus-5-5) and [Sonnet 5.5](https://www.anthropic.com/claude-sonnet-5-5), Anthropic [release notes](https://support.claude.com/en/articles/12138966-release-notes), the [OpenAI API changelog](https://developers.openai.com/api/docs/changelog), and [Codex pricing](https://learn.chatgpt.com/docs/pricing), all read 2026-09-30.
 
 ## Cost per task (independent benchmarks)
 
@@ -95,10 +97,12 @@ Install the half that matches the CLI you drive. Most people want one; installin
 **In Claude Code** (delegates out to Codex):
 
 ```bash
-cp -r for-claude-code/skills/delegate-to-codex ~/.claude/skills/
+cp -r for-claude-code/skills/cross-model-delegation ~/.claude/skills/
 mkdir -p ~/.claude/agents && cp for-claude-code/agents/*.md ~/.claude/agents/   # optional, model-pinned templates
 cp -r for-claude-code/skills/claude-accounts ~/.claude/skills/                     # optional, second Claude login
 ```
+
+Upgrading from 2.x: the Claude Code skill and plugin were renamed from `delegate-to-codex` to `cross-model-delegation` in 3.0.0 when Gemini joined. Remove `~/.claude/skills/delegate-to-codex` (or uninstall the old plugin), install the new one, and update the guard hook path below.
 
 **In Codex** (delegates out to Claude Code):
 
@@ -117,12 +121,13 @@ mkdir -p ~/.codex/agents && cp for-codex/agents/*.toml ~/.codex/agents/         
 codex plugin marketplace add alectivism/cross-model-agent-delegation
 ```
 
-Requires: both CLIs installed and logged in (`codex login`, `claude auth`), plus `jq` for the guard hooks. Also add the routing rules from [`docs/claude-md-snippet.md`](docs/claude-md-snippet.md) to your `CLAUDE.md`. That's the always-in-context layer that makes delegation happen by default instead of on request.
+Requires: both CLIs installed and logged in (`codex login`, `claude auth`), plus `jq` for the guard hooks. The Gemini wrapper also needs the Antigravity CLI (`agy`) signed in to a Google account with an AI Pro or Ultra plan. Also add the routing rules from [`docs/claude-md-snippet.md`](docs/claude-md-snippet.md) to your `CLAUDE.md`. That's the always-in-context layer that makes delegation happen by default instead of on request.
 
 Each skill loads automatically when a task smells like cross-model delegation ("ask GPT", "get Claude's read", "second opinion", "offload this review"), or when the orchestrator decides on its own that a subtask is worker work. It classifies into one of seven classes (`commit`, `implement`, `explore`, `ingest`, `review`, `hardest`, `prose`) and runs the wrapper, which owns every flag. You never type the invocation yourself, though you can:
 
 ```bash
-~/.claude/skills/delegate-to-codex/scripts/codex-run.sh review "Here is a plan and its context: ..."
+~/.claude/skills/cross-model-delegation/scripts/codex-run.sh review "Here is a plan and its context: ..."
+~/.claude/skills/cross-model-delegation/scripts/agy-run.sh   review "Here is a draft and its audience: ..."
 ~/.codex/skills/delegate-to-claude/scripts/claude-run.sh  review "Here is a plan and its context: ..."
 ```
 
@@ -137,7 +142,7 @@ An instruction is a nudge; a hook is a gate. Each side ships a guard that blocks
       "matcher": "Bash",
       "hooks": [{
         "type": "command",
-        "command": "~/.claude/skills/delegate-to-codex/scripts/codex-guard.sh",
+        "command": "~/.claude/skills/cross-model-delegation/scripts/codex-guard.sh",
         "timeout": 10
       }]
     }]
@@ -183,6 +188,19 @@ On the Codex side, models are **resolved, not pinned**. `codex-models.sh` reads 
 `codex-run.sh` also bakes in `--ignore-user-config` (drops ~20 MCP servers and ~50 plugins that otherwise cold-start for minutes), an explicit sandbox, `env -u OPENAI_API_KEY` (forces subscription auth), output to a file instead of stdout, `</dev/null` (background hang fix), and the [#31814](https://github.com/openai/codex/issues/31814) feature flags so a v2-parent orchestrator can actually route cheaper leaves.
 
 `claude-run.sh` bakes in `--strict-mcp-config` and `--disable-slash-commands`, full model IDs rather than aliases, a read-only tool allowlist with no shell, the prompt on stdin, `env -u ANTHROPIC_API_KEY`, and a worker-framing system prompt so the reply comes back as an answer rather than an offer of next steps.
+
+### Gemini through the Antigravity CLI
+
+Google retired the consumer Gemini CLI in June 2026; the Antigravity CLI (`agy`) replaced it and runs on a Google AI Pro or Ultra subscription through a Google account login, with no API key. Gemini 4 Argon reached it on 2026-10-13. Argon writes well and is weaker at code, so the wrapper's classes lean that way:
+
+| Class | Model | For |
+|---|---|---|
+| `prose` | Gemini 4 Argon (Medium) | drafting, rewriting, tone and voice critique |
+| `review` | Gemini 4 Argon (High) | second opinion on a draft, plan or argument |
+| `fast` | Gemini 3.8 Flash (Low) | extraction, mechanical edits, large-file reads |
+| `image` | Gemini 3.8 Flash (Medium) | images through agy's built-in `generate_image` tool |
+
+`agy-run.sh` starts agy in an empty temp dir (agy runs its tools without asking in print mode), unsets Gemini/Google API-key variables so the call bills the subscription, passes the prompt as `--print="..."` (agy's `-p` otherwise swallows the next flag as the prompt), and writes the answer to the `OUT=` file. Google's quota endpoints don't report Argon usage, so there's no quota reading for it. agy also serves Claude Opus/Sonnet 5.5 from a separate, small Claude/GPT pool on the same subscription: a fallback for self-contained prompts when your Claude quota is tight. Details: [`references/gemini-agy.md`](for-claude-code/skills/cross-model-delegation/references/gemini-agy.md).
 
 ### What the Claude side cost to get right (verified 2026-07-27, Claude Code 2.1.220)
 
@@ -240,7 +258,7 @@ See [`docs/org-instructions-cowork.md`](docs/org-instructions-cowork.md) for a p
 
 ```
 for-claude-code/                 install this half into ~/.claude
-  skills/delegate-to-codex/        SKILL.md + codex-run.sh + codex-guard.sh
+  skills/cross-model-delegation/   SKILL.md + codex-run.sh + codex-models.sh + codex-guard.sh + agy-run.sh (Gemini)
   skills/claude-accounts/          second Claude login: setup.sh, claude-alt launcher, alt-run.sh, accounts.py, tests
   agents/                          model+effort-pinned Claude agent templates
 for-codex/                       install this half into ~/.codex
@@ -250,7 +268,7 @@ docs/org-instructions-cowork.md  org instruction for Teams/Enterprise admins
 docs/claude-md-snippet.md        routing rules for your CLAUDE.md (always-in-context layer)
 ```
 
-Skill names read as verbs from the installer's point of view: you install `delegate-to-codex` in Claude Code and `delegate-to-claude` in Codex. The folder says which host, the name says which direction.
+The folder says which host. In Claude Code you install `cross-model-delegation`, which reaches two other families (Codex and Gemini); in Codex you install `delegate-to-claude`, which reaches one.
 
 ## Layered enforcement model
 
@@ -273,7 +291,7 @@ The five rules everything here follows from:
 
 ## Caveats
 
-Codex model slugs are resolved from the live catalog, but the fallback constants in `codex-models.sh`, the pinned Claude IDs in `claude-run.sh`, the prices and benchmark figures above (read 2026-09-30), and behaviors like #31814 are point-in-time; re-verify after either CLI updates. The `codex features list` and `codex mcp list` commands are your friends, and don't trust an LLM's self-report of its own tool schema, ours confidently got it wrong in both directions. Verify with `--json` events or A/B tests.
+Codex model slugs are resolved from the live catalog, but the Gemini class models in `agy-run.sh`, the fallback constants in `codex-models.sh`, the pinned Claude IDs in `claude-run.sh`, the prices and benchmark figures above (read 2026-09-30), and behaviors like #31814 are point-in-time; re-verify after either CLI updates. The `codex features list` and `codex mcp list` commands are your friends, and don't trust an LLM's self-report of its own tool schema, ours confidently got it wrong in both directions. Verify with `--json` events or A/B tests.
 
 ## License
 

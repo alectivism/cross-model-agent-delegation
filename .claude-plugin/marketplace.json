@@ -1,12 +1,12 @@
 {
   "name": "cross-model-agent-delegation",
-  "description": "Deterministic delegation between Claude Code and the Codex CLI, in both directions. Install the half that matches the CLI you drive, or both.",
+  "description": "Deterministic delegation between Claude Code and the Codex CLI in both directions, plus Gemini 4 Argon from Claude Code. Install the half that matches the CLI you drive, or both.",
   "owner": { "name": "Alec Foster", "email": "alec@mmaglobal.com" },
   "plugins": [
     {
-      "name": "delegate-to-codex",
-      "description": "Install in Claude Code. Routes worker tasks out to the Codex CLI (GPT-6 Astra, Sol, Luna), and runs a second Claude login side by side.",
-      "version": "2.1.0",
+      "name": "cross-model-delegation",
+      "description": "Install in Claude Code. Routes worker tasks out to the Codex CLI (GPT-6 Astra, Sol, Luna) and to Gemini 4 Argon through the Antigravity CLI, and runs a second Claude login side by side.",
+      "version": "3.0.0",
       "source": "./for-claude-code",
       "author": { "name": "Alec Foster", "email": "alec@mmaglobal.com" }
     },
