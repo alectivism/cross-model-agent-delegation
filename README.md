@@ -150,7 +150,7 @@ An instruction is a nudge; a hook is a gate. Each side ships a guard that blocks
 }
 ```
 
-`for-codex/skills/delegate-to-claude/scripts/claude-guard.sh` is the mirror, reading the same JSON envelope on stdin.
+If you installed through `/plugin install` instead of copying, the script sits in the plugin's install folder (`~/.claude/plugins/cache/cross-model-agent-delegation/cross-model-delegation/<version>/skills/cross-model-delegation/scripts/codex-guard.sh`); point the hook there and update the version after upgrades. `for-codex/skills/delegate-to-claude/scripts/claude-guard.sh` is the mirror, reading the same JSON envelope on stdin.
 
 ## How the routing works
 

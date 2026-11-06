@@ -15,7 +15,7 @@ Claude Code keys its login to the config dir: the macOS Keychain item `Claude Co
 ## Setup (once)
 
 ```bash
-~/.claude/skills/claude-accounts/scripts/setup.sh personal   # any name; default personal
+${CLAUDE_SKILL_DIR}/scripts/setup.sh personal   # any name; default personal
 claude-personal auth login                                    # pick the other account in the browser
 claude-personal auth status                                   # expect its email and configDirectory ~/.claude-personal
 ```
@@ -36,7 +36,7 @@ The full conversation history goes to whichever account continues it.
 Agent-tool subagents always bill the calling login, so a task meant for the second login goes through the wrapper:
 
 ```bash
-~/.claude/skills/claude-accounts/scripts/alt-run.sh [--name personal] [--model M] [--effort E] [--resume ID] [-C dir] "<full-context prompt>"
+${CLAUDE_SKILL_DIR}/scripts/alt-run.sh [--name personal] [--model M] [--effort E] [--resume ID] [-C dir] "<full-context prompt>"
 # stdout ends: ACCOUNTS ... / SESSION=<id> / OUT=<file>  → Read OUT. Follow up with --resume <SESSION>.
 ```
 
@@ -46,7 +46,7 @@ The child has the same skills and tools but none of this conversation, so write 
 
 `scripts/accounts.py` reads 5h and weekly usage for both logins from the OAuth usage endpoint that `/usage` uses (undocumented; every field is parsed defensively, so a plan that omits a bucket just shows fewer numbers). Weekly is the most-used weekly bucket, including per-model weekly caps where a plan has them.
 
-- **Hook line:** add `python3 ~/.claude/skills/claude-accounts/scripts/accounts.py line` as a `UserPromptSubmit` hook. It prints `ACCOUNTS main 5h 48%/4h25m 7d 16% H=0.59 TIGHT | personal 5h 0% ... OPEN` and refreshes in the background at most every 3 minutes. `H` is a pace ratio: remaining quota over remaining fraction of the window; under 1 runs out before the reset.
+- **Hook line:** add `python3 ${CLAUDE_SKILL_DIR}/scripts/accounts.py line` as a `UserPromptSubmit` hook. It prints `ACCOUNTS main 5h 48%/4h25m 7d 16% H=0.59 TIGHT | personal 5h 0% ... OPEN` and refreshes in the background at most every 3 minutes. `H` is a pace ratio: remaining quota over remaining fraction of the window; under 1 runs out before the reset.
 - **Statusline:** `accounts.py segment` prints `main 5h 48% (4h25m) 7d 16% | personal 5h 0% 7d 0%`. Pipe the statusline's stdin JSON into it so the session's own `rate_limits` are the fallback. A dot appears only at 70%+ (🟡) or 90%+ (🔴); weekly reset times appear at 70%+.
 - Labels: `CLAUDE_MAIN_LABEL` (default `main`), `CLAUDE_ALT_LABEL` (default the name).
 - `use=<name>` on the line means the main login is short on headroom (under 25% left, or its 5h window 20%+ used and on pace to run out before the reset, or 50%+ used at any pace; never within 15 minutes of a reset) and the second login has room. `switch=<name>` (75%+ of the main 5h window, or out) means the conversation itself should move: `/compact`, `/exit`, then `claude-<name> --resume <id>` (resume replays the whole transcript on the other login, and the prompt cache doesn't carry across).

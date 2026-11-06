@@ -14,7 +14,7 @@ A PreToolUse hook (`scripts/codex-guard.sh`) blocks raw `codex exec` from the Ba
 Never hand-assemble `codex exec` flags. Classify the task into one class and run the wrapper; it owns model, effort, sandbox, service tier, MCP/plugin suppression, auth hygiene, and output handling:
 
 ```bash
-~/.claude/skills/cross-model-delegation/scripts/codex-run.sh <class> [options] "<full-context prompt>"
+${CLAUDE_SKILL_DIR}/scripts/codex-run.sh <class> [options] "<full-context prompt>"
 # last stdout line: OUT=<file>  → Read that file. NEVER pipe codex stdout through head/tail.
 ```
 

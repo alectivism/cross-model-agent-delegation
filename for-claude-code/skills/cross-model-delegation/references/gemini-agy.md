@@ -11,7 +11,7 @@ Google retired the Gemini CLI for consumer accounts on 2026-06-18; the Antigravi
 ## Run it
 
 ```bash
-~/.claude/skills/cross-model-delegation/scripts/agy-run.sh <class> "<full-context prompt>"
+scripts/agy-run.sh <class> "<full-context prompt>"
 ```
 
 | Class | Model | Use for |
