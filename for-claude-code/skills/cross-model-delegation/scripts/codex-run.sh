@@ -150,7 +150,7 @@ fi
 # --strict-config makes codex REJECT unknown -c keys instead of ignoring them.
 # Added 2026-09-16 and it immediately caught `preferred_auth_method`, which was
 # removed from codex somewhere before 0.153.4 (0 occurrences in the binary) and
-# had been silently dropped on every call since. The env -u OPENAI_API_KEY below
+# had been silently dropped on every call since. Dropping key variables below
 # is what actually forces subscription auth, so nothing was broken by its loss --
 # but nothing would have told us either. Keep --strict-config: a key that gets
 # renamed upstream should fail loudly, not quietly un-pin effort or service_tier.
@@ -202,4 +202,8 @@ echo "codex-run: class=$CLASS model=$MODEL ($SOURCE) effort=$EFFORT service_tier
 # --web runs: codex succeeded, the report was written, and OUT= never appeared.
 trap 'echo "OUT=$OUT"' EXIT
 
-env -u OPENAI_API_KEY codex "${ARGS[@]}" "$PROMPT" >&2 </dev/null || true
+# Unset every exported *_KEY / *_TOKEN variable for this call: an API key in the
+# shell would switch codex from the ChatGPT plan to per-token API billing. Codex
+# reads its own login from CODEX_HOME, so it needs none of them.
+( for v in $(compgen -e); do case "$v" in *_KEY|*_TOKEN) unset "$v" 2>/dev/null || : ;; esac; done
+  exec codex "${ARGS[@]}" "$PROMPT" ) >&2 </dev/null || true

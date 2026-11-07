@@ -58,8 +58,9 @@ echo "alt-run: login=$NAME model=${MODEL:-default} effort=${EFFORT:-default} mod
 
 # When called from inside a Claude Code session, drop the parent's session
 # identity so the child starts as its own top-level session.
+for v in $(compgen -e); do case "$v" in CLAUDE_CODE_MESSAGING_*) unset "$v" 2>/dev/null || : ;; esac; done
 env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION -u CLAUDE_CODE_BRIDGE_SESSION_ID \
-    -u CLAUDE_CODE_MESSAGING_SOCKET -u CLAUDE_CODE_MESSAGING_TOKEN -u CLAUDE_CODE_ENTRYPOINT \
+    -u CLAUDE_CODE_MESSAGING_SOCKET -u CLAUDE_CODE_ENTRYPOINT \
     -u CLAUDE_CODE_SESSION_ATTENDED -u CLAUDE_PID -u CLAUDE_CODE_EXECPATH -u CLAUDE_EFFORT \
     "$LAUNCHER" "${ARGS[@]}" "$PROMPT" </dev/null >"$META" 2>"$ERR" && RC=0 || RC=$?
 

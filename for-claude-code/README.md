@@ -25,12 +25,12 @@ Claude Code. For Codex delegation, the Codex CLI signed in to a ChatGPT plan. Fo
 
 Nothing runs on install: the plugin has no hooks or MCP servers. Scripts run only when Claude or you invoke them.
 
-- **`codex-run.sh`** runs your installed `codex` CLI with your prompt. The prompt goes to OpenAI under your own Codex login. It unsets `OPENAI_API_KEY` for that call so the run bills your ChatGPT plan. The answer is written to a temp file whose path it prints.
+- **`codex-run.sh`** runs your installed `codex` CLI with your prompt. The prompt goes to OpenAI under your own Codex login. It unsets every exported `*_KEY` and `*_TOKEN` variable for that call, so an API key in your shell can't switch the run from your ChatGPT plan to API billing. The answer is written to a temp file whose path it prints.
 - **`codex-models.sh`** reads `$CODEX_HOME/models_cache.json`, which the Codex CLI maintains. Its `sync-agents` command rewrites the `model =` line in your `~/.codex/agents/*.toml` files.
-- **`agy-run.sh`** runs your installed `agy` CLI with your prompt, which goes to Google under your own Google login. It unsets the Gemini and Google API-key variables for that call, starts agy in a new empty temp folder, and writes the answer to a temp file.
+- **`agy-run.sh`** runs your installed `agy` CLI with your prompt, which goes to Google under your own Google login. It unsets every exported `*_KEY` and `*_TOKEN` variable for that call, starts agy in a new empty temp folder, and writes the answer to a temp file.
 - **`codex-guard.sh`** reads the hook's JSON input and prints a deny decision for raw `codex exec` commands. It sends nothing. It is active only if you add it to your `settings.json` yourself, pointing at its path inside the plugin's install folder.
 - **`setup.sh <name>`** creates `~/.claude-<name>/` with symlinks back into `~/.claude`, and links a `claude-<name>` launcher into `~/.local/bin`.
-- **`claude-alt.sh`** runs `sync_config.py`, then starts the `claude` CLI with `CLAUDE_CONFIG_DIR` set to the second config folder.
+- **`claude-alt.sh`** runs `sync_config.py`, then unsets any exported Anthropic key or token variable (so the second login can't run on an API key), then starts the `claude` CLI with `CLAUDE_CONFIG_DIR` set to the second config folder.
 - **`sync_config.py`** copies MCP server and per-project settings from `~/.claude.json` into the second login's `.claude.json`. Login and account fields are never copied.
 - **`alt-run.sh`** runs one headless `claude -p` task under the second login and writes the result to a temp file.
 - **`accounts.py`** reads the `rate_limits` object Claude Code passes to the statusline on stdin and caches each login's 5h and weekly usage in `~/.claude/claude-accounts-usage.json`. It reads no credentials and makes no network calls.

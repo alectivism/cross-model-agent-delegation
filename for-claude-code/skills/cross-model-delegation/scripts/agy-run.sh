@@ -46,9 +46,12 @@ if [ -z "$DIR" ]; then DIR="$(mktemp -d "${TMPDIR:-/tmp}/agy-run.XXXXXX")"; fi
 OUT="${OUT:-$(mktemp "${TMPDIR:-/tmp}/agy-run.XXXXXX")}"
 
 # --print=<prompt> keeps a prompt that starts with "-" from being read as a flag
-# API-key variables are dropped so the run always bills the subscription login.
 # (agy rejects `-p --model ...` because -p takes the next word as its prompt).
-( cd "$DIR" && env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_API_KEY agy --model "$MODEL" --output-format json --print="$PROMPT" ) >"$OUT.json" 2>"$OUT.err"
+# Every exported *_KEY / *_TOKEN variable is unset for this call so an API key in
+# the shell can't take over from the subscription login (agy keeps its own login
+# in the OS keychain and needs none of them).
+( cd "$DIR" && for v in $(compgen -e); do case "$v" in *_KEY|*_TOKEN) unset "$v" 2>/dev/null || : ;; esac; done
+  exec agy --model "$MODEL" --output-format json --print="$PROMPT" ) >"$OUT.json" 2>"$OUT.err"
 RC=$?
 if python3 - "$OUT.json" "$OUT" <<'PY'
 import json, sys

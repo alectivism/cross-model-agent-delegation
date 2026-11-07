@@ -18,9 +18,12 @@ MAIN="${CLAUDE_MAIN_DIR:-$HOME/.claude}"
 
 [ -d "$CLAUDE_CONFIG_DIR" ] || { echo "claude-$NAME: $CLAUDE_CONFIG_DIR missing; run $HERE/setup.sh $NAME" >&2; exit 2; }
 
-# These outrank a Keychain/subscription login, so a stray one would silently
-# run this login on someone else's credentials.
-unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN
+# An Anthropic key or token variable outranks the subscription login, so a stray
+# one would silently run this login on someone else's account. Unset them; other
+# variables (ones your MCP servers may use) are left alone.
+for v in $(compgen -e); do
+  case "$v" in ANTHROPIC_*_KEY|ANTHROPIC_*_TOKEN|CLAUDE_CODE_*_TOKEN) unset "$v" 2>/dev/null || : ;; esac
+done
 
 python3 "$HERE/sync_config.py" "$CLAUDE_CONFIG_DIR" --quiet \
   || echo "claude-$NAME: config sync failed; using last synced config" >&2

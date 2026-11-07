@@ -6,7 +6,7 @@ Google retired the Gemini CLI for consumer accounts on 2026-06-18; the Antigravi
 
 1. Install the Antigravity CLI from Google's installer, then run `agy` once interactively and sign in with your Google account.
 2. `agy models` must list `gemini-4-argon-*`. If it doesn't, update the CLI: agy self-updates on launch, and a 1.1.x build on 2026-11-06 listed no Argon until it updated itself to 1.5.2.
-3. Optional: to make sure an API key never takes over, set `security.auth.enforcedType` to `oauth-personal` and list `GEMINI_API_KEY`, `GOOGLE_API_KEY` and `GOOGLE_GENAI_API_KEY` under `advanced.excludedEnvVars` in `~/.gemini/settings.json`. The wrapper also unsets those variables for its own call.
+3. Optional: to make sure an API key never takes over, set `security.auth.enforcedType` to `oauth-personal` in `~/.gemini/settings.json` and list any Gemini or Google API-key variables you export under `advanced.excludedEnvVars`. The wrapper also unsets every exported `*_KEY` and `*_TOKEN` variable for its own call.
 
 ## Run it
 
