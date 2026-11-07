@@ -37,6 +37,10 @@ Nothing runs on install: the plugin has no hooks or MCP servers. Scripts run onl
 
 Only the wrappers that run a model (`codex-run.sh`, `agy-run.sh`, `alt-run.sh`) send anything off your machine, each through the CLI you installed and signed in to. No script reads credentials or collects telemetry.
 
+## Privacy
+
+The plugin collects no data, sends no telemetry and runs no server of its own. A prompt you delegate goes to OpenAI, Google or Anthropic through the CLI you installed and signed in to, under that provider's own terms and privacy policy. Usage numbers and output files stay on your machine.
+
 ## License
 
 MIT, as set in `plugin.json` and the repository's `LICENSE`.
